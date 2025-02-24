@@ -126,9 +126,5 @@ python main.py
 
 ---
 
-## Contributing
 
-Contributions, suggestions, and bug reports are welcome! Feel free to open an issue or submit a pull request.
-
----
 
