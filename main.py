@@ -5,9 +5,9 @@ import random
 import copy
 
 from entities import CelestialBody
-from physics import update_physics_euler, update_physics_rk4
+from physics import update_physics_euler, update_physics_rk4, update_physics_verlet
 from gui import Button, Slider, BACKGROUND_COLOR, NEON_YELLOW, NEON_MAGENTA, NEON_CYAN
-from utils import scale, distance
+from utils import scale, distance, subtract, normalize, magnitude, add
 
 pygame.init()
 WIDTH, HEIGHT = 1280, 720
@@ -16,45 +16,32 @@ pygame.display.set_caption("Cyberpunk Orbital Mechanics Simulator")
 clock = pygame.time.Clock()
 
 # Simulation parameters
-dt = 0.1  # Time step
+dt = 0.1
 
 # Global simulation state
 simulation_running = True
 simulation_time = 0.0
-
-# Integration method toggle: "euler" or "rk4"
-integration_method = "euler"
-
-# Debug mode toggle
+integration_method = "euler"  # Options: "euler", "rk4", "verlet"
 debug_mode = False
-
-# These functionalities are always on by default
 collisions_enabled = True
 fade_trails = True
 show_energy = True
-
-# Toggle for predicted trajectory display and body selection
 prediction_enabled = False
 selected_body = None
 
-# Variables for interactive body creation (in world coordinates)
+# Variables for body creation
 creating_body = False
 creation_start = None
 current_mouse_pos = None
 
-# Camera variables for pan and zoom
-camera_offset = [WIDTH / 2, HEIGHT / 2]
+# Camera variables
+camera_offset = [0, 0]
 zoom_factor = 1.0
 panning = False
 pan_last_pos = None
 
-# Generate starfield (world coordinates)
-starfield = []
-num_stars = 300
-for _ in range(num_stars):
-    x = random.uniform(-5000, 5000)
-    y = random.uniform(-5000, 5000)
-    starfield.append((x, y))
+# Starfield
+starfield = [(random.uniform(-5000, 5000), random.uniform(-5000, 5000)) for _ in range(300)]
 
 def world_to_screen(pos):
     return (int((pos[0] - camera_offset[0]) * zoom_factor + WIDTH / 2),
@@ -108,7 +95,7 @@ def draw_dashed_line(surface, color, start, end, dash_length=5, space_length=3):
             dash_end = end
         pygame.draw.line(surface, color, dash_start, dash_end, 2)
 
-# --- GUI Callback Functions ---
+# GUI Callbacks
 def toggle_simulation():
     global simulation_running
     simulation_running = not simulation_running
@@ -125,6 +112,9 @@ def toggle_integration():
     if integration_method == "euler":
         integration_method = "rk4"
         integration_button.text = "Integration: RK4"
+    elif integration_method == "rk4":
+        integration_method = "verlet"
+        integration_button.text = "Integration: Verlet"
     else:
         integration_method = "euler"
         integration_button.text = "Integration: Euler"
@@ -136,7 +126,7 @@ def toggle_debug():
 
 def reset_camera():
     global camera_offset, zoom_factor
-    camera_offset = [WIDTH / 2, HEIGHT / 2]
+    camera_offset = [0, 0]
     zoom_factor = 1.0
 
 def take_screenshot():
@@ -197,30 +187,38 @@ def handle_collisions(bodies):
             new_bodies.append(body1)
     return new_bodies
 
-# --- GUI Elements ---
+# GUI Elements
 pause_button = Button(rect=(10, 10, 120, 30), text="Pause/Resume", callback=toggle_simulation, font_size=16)
 reset_button = Button(rect=(140, 10, 80, 30), text="Reset", callback=reset_simulation, font_size=16)
 integration_button = Button(rect=(230, 10, 150, 30), text="Integration: Euler", callback=toggle_integration, font_size=16)
 debug_button = Button(rect=(390, 10, 100, 30), text="Debug: Off", callback=toggle_debug, font_size=16)
 reset_camera_button = Button(rect=(930, 10, 140, 30), text="Reset Camera", callback=reset_camera, font_size=16)
 screenshot_button = Button(rect=(1070, 10, 140, 30), text="Screenshot", callback=take_screenshot, font_size=16)
-# Move prediction and clear selection buttons slightly down
 prediction_button = Button(rect=(10, 270, 140, 30), text="Prediction: Off", callback=toggle_prediction, font_size=16)
 clear_selection_button = Button(rect=(160, 270, 140, 30), text="Clear Selection", callback=clear_selection, font_size=16)
+solar_system_button = Button(rect=(10, 310, 140, 30), text="Solar System", callback=lambda: set_preset(create_solar_system), font_size=16)
+binary_stars_button = Button(rect=(160, 310, 140, 30), text="Binary Stars", callback=lambda: set_preset(create_binary_stars), font_size=16)
 
-# Sliders at bottom left
 speed_slider = Slider(rect=(10, 640, 200, 20), min_val=0.1, max_val=5.0, initial=1.0, label="Sim Speed", font_size=16)
 planet_size_slider = Slider(rect=(10, 670, 200, 20), min_val=4, max_val=20, initial=6.0, label="Planet Size", font_size=16)
 g_slider = Slider(rect=(10, 700, 200, 20), min_val=0.01, max_val=1.0, initial=0.1, label="G Constant", font_size=16)
+
+# Adjusted slider positions to avoid minimap overlap
+mass_slider = Slider(rect=(WIDTH - 210, 240, 200, 20), min_val=1, max_val=10000, initial=10, label="Mass", font_size=16)
+vx_slider = Slider(rect=(WIDTH - 210, 270, 200, 20), min_val=-10, max_val=10, initial=0, label="Vx", font_size=16)
+vy_slider = Slider(rect=(WIDTH - 210, 300, 200, 20), min_val=-10, max_val=10, initial=0, label="Vy", font_size=16)
 
 def draw_legend(surface):
     legend_lines = [
         "Shift+Drag: Create planet",
         "Right-drag: Pan camera",
-        "Mouse Wheel: Zoom"
+        "Mouse Wheel: Zoom",
+        "Arrow keys: Pan camera",
+        "Plus/Minus: Zoom",
+        "Select body to edit properties"
     ]
     legend_width = 250
-    legend_height = 70
+    legend_height = 120
     legend_x = WIDTH - legend_width - 10
     legend_y = HEIGHT - legend_height - 10
     pygame.draw.rect(surface, (30, 30, 30), (legend_x, legend_y, legend_width, legend_height))
@@ -249,27 +247,34 @@ def add_new_body(start, end):
     bodies.append(new_body)
 
 def create_bodies():
-    center = (WIDTH / 2, HEIGHT / 2)
-    sun = CelestialBody(
-        mass=10000,
-        pos=center,
-        vel=(0, 0),
-        radius=20,
-        color=NEON_YELLOW
-    )
+    sun = CelestialBody(mass=10000, pos=(0, 0), vel=(0, 0), radius=20, color=NEON_YELLOW)
     distance_from_sun = 200
     planet_velocity = math.sqrt(g_slider.value * sun.mass / distance_from_sun)
-    planet = CelestialBody(
-        mass=10,
-        pos=(center[0] + distance_from_sun, center[1]),
-        vel=(0, -planet_velocity),
-        radius=8,
-        color=NEON_MAGENTA
-    )
+    planet = CelestialBody(mass=10, pos=(distance_from_sun, 0), vel=(0, -planet_velocity), radius=8, color=NEON_MAGENTA)
     return [sun, planet]
 
-bodies = create_bodies()
+def create_solar_system():
+    sun = CelestialBody(mass=10000, pos=(0, 0), vel=(0, 0), radius=20, color=NEON_YELLOW)
+    earth = CelestialBody(mass=10, pos=(200, 0), vel=(0, -math.sqrt(g_slider.value * sun.mass / 200)), radius=8, color=NEON_MAGENTA)
+    mars = CelestialBody(mass=8, pos=(300, 0), vel=(0, -math.sqrt(g_slider.value * sun.mass / 300)), radius=7, color=(255, 0, 0))
+    return [sun, earth, mars]
 
+def create_binary_stars():
+    G = g_slider.value
+    m = 5000
+    r = 200  # Separation between stars
+    # Velocity for circular orbit: v = sqrt(G * m / (2 * r))
+    v = math.sqrt(G * m / (2 * r))
+    star1 = CelestialBody(mass=m, pos=(-r/2, 0), vel=(0, v), radius=15, color=NEON_YELLOW)
+    star2 = CelestialBody(mass=m, pos=(r/2, 0), vel=(0, -v), radius=15, color=NEON_CYAN)
+    return [star1, star2]
+
+def set_preset(create_func):
+    global bodies, selected_body
+    bodies = create_func()
+    selected_body = None
+
+bodies = create_bodies()
 debug_font = pygame.font.Font("freesansbold.ttf", 16)
 
 while True:
@@ -277,24 +282,28 @@ while True:
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
-        
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 3:
+            if event.button == 3:  # Right-click to pan
                 panning = True
                 pan_last_pos = event.pos
-            elif event.button == 1:
+            elif event.button == 1:  # Left-click
                 mods = pygame.key.get_mods()
                 if mods & pygame.KMOD_SHIFT:
                     creating_body = True
                     creation_start = screen_to_world(event.pos)
                 else:
                     buttons = [pause_button, reset_button, integration_button, debug_button,
-                               reset_camera_button, screenshot_button, prediction_button, clear_selection_button]
+                               reset_camera_button, screenshot_button, prediction_button, clear_selection_button,
+                               solar_system_button, binary_stars_button]
                     if not any(b.is_clicked(event.pos) for b in buttons):
                         click_world = screen_to_world(event.pos)
                         for b in bodies:
                             if distance(click_world, b.pos) < b.radius + 5:
                                 selected_body = b
+                                # Set slider values only when a body is selected
+                                mass_slider.value = b.mass
+                                vx_slider.value = b.vel[0]
+                                vy_slider.value = b.vel[1]
                                 break
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 3:
@@ -317,6 +326,10 @@ while True:
                     prediction_button.callback()
                 elif clear_selection_button.is_clicked(event.pos):
                     clear_selection_button.callback()
+                elif solar_system_button.is_clicked(event.pos):
+                    solar_system_button.callback()
+                elif binary_stars_button.is_clicked(event.pos):
+                    binary_stars_button.callback()
                 if creating_body:
                     add_new_body(creation_start, mouse_pos_world)
                     creating_body = False
@@ -333,13 +346,31 @@ while True:
         elif event.type == pygame.MOUSEWHEEL:
             zoom_factor *= 1.0 + event.y * 0.1
             zoom_factor = max(0.1, min(zoom_factor, 5.0))
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                camera_offset[0] -= 10 / zoom_factor
+            elif event.key == pygame.K_RIGHT:
+                camera_offset[0] += 10 / zoom_factor
+            elif event.key == pygame.K_UP:
+                camera_offset[1] -= 10 / zoom_factor
+            elif event.key == pygame.K_DOWN:
+                camera_offset[1] += 10 / zoom_factor
+            elif event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
+                zoom_factor *= 1.1
+                zoom_factor = min(zoom_factor, 5.0)
+            elif event.key == pygame.K_MINUS:
+                zoom_factor /= 1.1
+                zoom_factor = max(zoom_factor, 0.1)
         
         speed_slider.handle_event(event)
         planet_size_slider.handle_event(event)
         g_slider.handle_event(event)
+        if selected_body:
+            mass_slider.handle_event(event)
+            vx_slider.handle_event(event)
+            vy_slider.handle_event(event)
     
     screen.fill(BACKGROUND_COLOR)
-    
     draw_starfield(screen)
     
     if simulation_running:
@@ -347,8 +378,10 @@ while True:
         speed_factor = speed_slider.value
         if integration_method == "euler":
             update_physics_euler(bodies, dt * speed_factor, current_G)
-        else:
+        elif integration_method == "rk4":
             update_physics_rk4(bodies, dt * speed_factor, current_G)
+        elif integration_method == "verlet":
+            update_physics_verlet(bodies, dt * speed_factor, current_G)
         simulation_time += dt * speed_factor
     
     if collisions_enabled:
@@ -366,7 +399,7 @@ while True:
         pygame.draw.line(screen, (255, 255, 255), world_to_screen(creation_start), world_to_screen(current_mouse_pos), 2)
         pygame.draw.circle(screen, (255, 255, 255), world_to_screen(creation_start), 4)
     
-    if prediction_enabled and selected_body is not None:
+    if prediction_enabled and selected_body:
         try:
             index = bodies.index(selected_body)
             predicted_bodies = [copy.deepcopy(b) for b in bodies]
@@ -379,11 +412,12 @@ while True:
             for i in range(len(predicted_positions)-1):
                 start_pos = world_to_screen(predicted_positions[i])
                 end_pos = world_to_screen(predicted_positions[i+1])
-                draw_dashed_line(screen, (57, 255, 20), start_pos, end_pos, dash_length=5, space_length=3)
+                draw_dashed_line(screen, (57, 255, 20), start_pos, end_pos)
             pygame.draw.circle(screen, NEON_CYAN, world_to_screen(selected_body.pos), max(5, int(selected_body.radius * zoom_factor)), 2)
         except ValueError:
             selected_body = None
     
+    # Draw GUI elements
     pause_button.draw(screen)
     reset_button.draw(screen)
     integration_button.draw(screen)
@@ -392,10 +426,21 @@ while True:
     screenshot_button.draw(screen)
     prediction_button.draw(screen)
     clear_selection_button.draw(screen)
+    solar_system_button.draw(screen)
+    binary_stars_button.draw(screen)
     speed_slider.draw(screen)
     planet_size_slider.draw(screen)
     g_slider.draw(screen)
     
+    # Update selected body's properties from sliders and draw them
+    if selected_body:
+        selected_body.mass = mass_slider.value
+        selected_body.vel = (vx_slider.value, vy_slider.value)
+        mass_slider.draw(screen)
+        vx_slider.draw(screen)
+        vy_slider.draw(screen)
+    
+    # Draw simulation info
     time_text = debug_font.render(f"Sim Time: {simulation_time:.2f}s", True, (255, 255, 255))
     method_text = debug_font.render(f"Method: {integration_method.upper()}", True, (255, 255, 255))
     screen.blit(time_text, (10, 210))
