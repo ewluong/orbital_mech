@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>3D Holographic Solar System Simulator</title>
+  <style>
+    /* Global Styles with fixed holographic grid background */
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #111;
+      background-image: 
+        repeating-linear-gradient(
+          0deg,
+          rgba(255,140,0,0.3) 0px,
+          rgba(255,140,0,0.3) 1px,
+          transparent 1px,
+          transparent 20px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          rgba(255,140,0,0.3) 0px,
+          rgba(255,140,0,0.3) 1px,
+          transparent 1px,
+          transparent 20px
+        );
+      background-size: 20px 20px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      color: #FF8C00;
+    }
+    /* Main HUD (top-left) */
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, rgba(255,140,0,0.25), rgba(0,0,0,0.25));
+      border: 1px solid rgba(255,140,0,0.8);
+      box-shadow: 0 0 8px rgba(255,140,0,0.8);
+      backdrop-filter: blur(5px);
+      z-index: 10;
+      max-width: 250px;
+    }
+    #hud div {
+      margin-bottom: 3px;
+      font-size: 13px;
+      text-shadow: 0 0 4px rgba(255,140,0,0.8);
+    }
+    /* Data HUD (bottom-right) - start visible */
+    #dataHud {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, rgba(255,140,0,0.25), rgba(0,0,0,0.25));
+      border: 1px solid rgba(255,140,0,0.8);
+      box-shadow: 0 0 8px rgba(255,140,0,0.8);
+      backdrop-filter: blur(5px);
+      z-index: 10;
+      max-width: 350px;
+      display: block;
+    }
+    #dataHud div {
+      margin-bottom: 3px;
+      font-size: 13px;
+      text-shadow: 0 0 4px rgba(255,140,0,0.8);
+    }
+    /* Chart canvas styling */
+    .chart-canvas {
+      background: rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255,140,0,0.5);
+      margin-top: 5px;
+    }
+    /* Controls (bottom-left) */
+    #controls {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      padding: 6px 10px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,140,0,0.8);
+      box-shadow: 0 0 8px rgba(255,140,0,0.8);
+      backdrop-filter: blur(3px);
+      z-index: 10;
+    }
+    #controls button {
+      background: transparent;
+      border: 1px solid rgba(255,140,0,0.8);
+      color: #FF8C00;
+      padding: 4px 8px;
+      margin-right: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: background 0.3s;
+    }
+    #controls button:hover {
+      background: rgba(255,140,0,0.2);
+    }
+    /* Add Body Form */
+    #addBodyForm {
+      position: absolute;
+      bottom: 60px;
+      left: 10px;
+      padding: 10px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,140,0,0.8);
+      box-shadow: 0 0 8px rgba(255,140,0,0.8);
+      backdrop-filter: blur(3px);
+      z-index: 10;
+    }
+    #addBodyForm input {
+      margin: 2px;
+      padding: 2px;
+      font-size: 12px;
+    }
+    #addBodyForm button {
+      background: transparent;
+      border: 1px solid rgba(255,140,0,0.8);
+      color: #FF8C00;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+  </style>
+  <!-- Load Three.js, OrbitControls, and Chart.js -->
+  <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <!-- Main HUD -->
+  <div id="hud">
+    <div id="simTime">Time: 0 yr</div>
+    <div id="timeScale">Time Scale: 1x</div>
+    <div id="integrator">Integrator: RK4</div>
+    <div id="selectedInfo"></div>
+  </div>
+  <!-- Data HUD with Live Charts (now visible by default) -->
+  <div id="dataHud">
+    <div id="totalEnergy">Energy: --</div>
+    <div id="totalMomentum">Momentum: --</div>
+    <canvas id="energyChart" class="chart-canvas" width="300" height="150"></canvas>
+    <canvas id="momentumChart" class="chart-canvas" width="300" height="150"></canvas>
+  </div>
+  <!-- Controls -->
+  <div id="controls">
+    <button id="speedUp">Speed Up</button>
+    <button id="slowDown">Slow Down</button>
+    <button id="resetSim">Reset</button>
+    <button id="toggleDataHud">Data HUD</button>
+    <button id="toggleIntegrator">Toggle Integrator</button>
+    <button id="exportData">Export Data</button>
+  </div>
+  <!-- Add Body Form -->
+  <div id="addBodyForm">
+    <h3>Add Custom Body</h3>
+    <input type="text" id="bodyName" placeholder="Name">
+    <input type="number" id="bodyMass" placeholder="Mass (M_sun)">
+    <input type="number" id="bodyX" placeholder="X (AU)">
+    <input type="number" id="bodyY" placeholder="Y (AU)">
+    <input type="number" id="bodyZ" placeholder="Z (AU)">
+    <input type="number" id="bodyVx" placeholder="Vx (AU/year)">
+    <input type="number" id="bodyVy" placeholder="Vy (AU/year)">
+    <input type="number" id="bodyVz" placeholder="Vz (AU/year)">
+    <button id="addBody">Add Body</button>
+  </div>
+  <!-- Simulation Script -->
+  <script>
+    /***** UTILITY FUNCTIONS *****/
+    function deg2rad(deg) {
+      return deg * Math.PI / 180;
+    }
+
+    /***** NORMALIZATION & SCALING *****/
+    const distanceScale = 50;  // 1 AU becomes 50 units
+    const G_sim = 4 * Math.PI * Math.PI * Math.pow(distanceScale, 3);
+
+    /***** PLANETARY DATA with orbital elements *****/
+    const planetData = [
+      { name: "Mercury", a: 0.387, e: 0.2056, i: 7, ω: 29, Ω: 48, mass: 3.3e-7, radius: 0.003 },
+      { name: "Venus", a: 0.723, e: 0.0068, i: 3.4, ω: 54, Ω: 76, mass: 2.45e-6, radius: 0.007 },
+      { name: "Earth", a: 1.0, e: 0.0167, i: 0, ω: 114, Ω: -11, mass: 3e-6, radius: 0.008 },
+      { name: "Mars", a: 1.524, e: 0.0934, i: 1.85, ω: 286, Ω: 49, mass: 3.2e-7, radius: 0.004 },
+      { name: "Jupiter", a: 5.203, e: 0.0489, i: 1.3, ω: 275, Ω: 100, mass: 0.001, radius: 0.1 },
+      { name: "Saturn", a: 9.537, e: 0.0565, i: 2.49, ω: 339, Ω: 113, mass: 0.0003, radius: 0.09 },
+      { name: "Uranus", a: 19.191, e: 0.0463, i: 0.77, ω: 96, Ω: 74, mass: 4.37e-5, radius: 0.04 },
+      { name: "Neptune", a: 30.07, e: 0.0086, i: 1.77, ω: 276, Ω: 131, mass: 5.15e-5, radius: 0.04 }
+    ];
+    const sunData = { name: "Sun", mass: 1, radius: 0.1 };
+
+    /***** GLOBAL VARIABLES *****/
+    let scene, camera, renderer, controls;
+    const objects = [];
+    const softening = 0.001;
+    let simTime = 0;
+    let timeScale = 1;
+    const maxPathPoints = 300;
+    // Start with data HUD visible
+    let dataHudVisible = true;
+    const baseDt = 0.016;  // Base timestep in years (approx 60 FPS)
+    const maxDt = 0.001;   // Maximum dt per substep for stability
+    let integrationMethod = "RK4";
+
+    // Data arrays for live charts
+    const timeData = [];
+    const energyData = [];
+    const momentumData = [];
+
+    // Chart instances
+    let energyChart, momentumChart;
+
+    /***** 1. INITIALIZE THE SCENE *****/
+    function initScene() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1e6);
+      camera.position.set(0, 40, 100);
+      camera.lookAt(new THREE.Vector3(0,0,0));
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0x000000, 0);
+      document.body.appendChild(renderer.domElement);
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.1;
+      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+      const pointLight = new THREE.PointLight(0xFF8C00, 1.5, 1e4);
+      pointLight.position.set(50,50,50);
+      scene.add(pointLight);
+      const platform = createHolographicPlatform();
+      scene.add(platform);
+      console.log("Scene initialized.");
+    }
+
+    /***** 2. CREATE HOLOGRAPHIC PLATFORM *****/
+    function createHolographicPlatform() {
+      const group = new THREE.Group();
+      const holoColor = 0xFF8C00;
+      const mainGeometry = new THREE.CircleGeometry(35 * distanceScale, 64);
+      const mainMaterial = new THREE.MeshPhongMaterial({
+        color: holoColor,
+        emissive: holoColor,
+        emissiveIntensity: 0.3,
+        transparent: true,
+        opacity: 0.15,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      const mainCircle = new THREE.Mesh(mainGeometry, mainMaterial);
+      mainCircle.rotation.x = -Math.PI/2;
+      group.add(mainCircle);
+      const segments = 64;
+      const radii = [35, 25, 15, 5];
+      radii.forEach(radius => {
+        const points = [];
+        for(let i = 0; i <= segments; i++){
+          const theta = (i/segments)*Math.PI*2;
+          points.push(new THREE.Vector3(radius * distanceScale * Math.cos(theta), 0, radius * distanceScale * Math.sin(theta)));
+        }
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({ 
+          color: holoColor, 
+          transparent: true, 
+          opacity: 0.6,
+          depthWrite: false
+        });
+        const ring = new THREE.LineLoop(geometry, material);
+        group.add(ring);
+      });
+      group.position.y = -0.05;
+      return group;
+    }
+
+    /***** 3. PHYSICS: RK4 INTEGRATION WITH SUBSTEPPING *****/
+    function computeDerivatives(states) {
+      const derivatives = [];
+      for(let i = 0; i < states.length; i++){
+        const dr = states[i].v.clone();
+        const dv = new THREE.Vector3();
+        for(let j = 0; j < states.length; j++){
+          if(i === j) continue;
+          const diff = states[j].r.clone().sub(states[i].r);
+          const distanceSq = diff.lengthSq() + softening*softening;
+          const forceMag = (G_sim * states[j].mass) / distanceSq;
+          dv.add(diff.normalize().multiplyScalar(forceMag));
+        }
+        derivatives.push({ dr: dr, dv: dv });
+      }
+      return derivatives;
+    }
+
+    function rk4Step(totalDt) {
+      const steps = Math.ceil(totalDt / maxDt);
+      const dt = totalDt / steps;
+      for(let s = 0; s < steps; s++){
+        const n = objects.length;
+        const state0 = objects.map(body => ({
+          r: body.position.clone(),
+          v: body.velocity.clone(),
+          mass: body.mass
+        }));
+        const k1 = computeDerivatives(state0);
+        const state2 = [];
+        for(let i = 0; i < n; i++){
+          state2.push({
+            r: state0[i].r.clone().add(k1[i].dr.clone().multiplyScalar(dt/2)),
+            v: state0[i].v.clone().add(k1[i].dv.clone().multiplyScalar(dt/2)),
+            mass: state0[i].mass
+          });
+        }
+        const k2 = computeDerivatives(state2);
+        const state3 = [];
+        for(let i = 0; i < n; i++){
+          state3.push({
+            r: state0[i].r.clone().add(k2[i].dr.clone().multiplyScalar(dt/2)),
+            v: state0[i].v.clone().add(k2[i].dv.clone().multiplyScalar(dt/2)),
+            mass: state0[i].mass
+          });
+        }
+        const k3 = computeDerivatives(state3);
+        const state4 = [];
+        for(let i = 0; i < n; i++){
+          state4.push({
+            r: state0[i].r.clone().add(k3[i].dr.clone().multiplyScalar(dt)),
+            v: state0[i].v.clone().add(k3[i].dv.clone().multiplyScalar(dt)),
+            mass: state0[i].mass
+          });
+        }
+        const k4 = computeDerivatives(state4);
+        for(let i = 0; i < n; i++){
+          const dr = k1[i].dr.clone()
+                      .add(k2[i].dr.clone().multiplyScalar(2))
+                      .add(k3[i].dr.clone().multiplyScalar(2))
+                      .add(k4[i].dr.clone())
+                      .multiplyScalar(dt/6);
+          const dv = k1[i].dv.clone()
+                      .add(k2[i].dv.clone().multiplyScalar(2))
+                      .add(k3[i].dv.clone().multiplyScalar(2))
+                      .add(k4[i].dv.clone())
+                      .multiplyScalar(dt/6);
+          objects[i].position.add(dr);
+          objects[i].velocity.add(dv);
+          objects[i].mesh.position.copy(objects[i].position);
+        }
+      }
+      handleCollisions();
+    }
+
+    /***** 4. PHYSICS: LEAPFROG INTEGRATION *****/
+    function computeAcceleration(body) {
+      const acc = new THREE.Vector3();
+      objects.forEach(other => {
+        if (other === body) return;
+        const diff = other.position.clone().sub(body.position);
+        const distanceSq = diff.lengthSq() + softening * softening;
+        const forceMag = (G_sim * other.mass) / distanceSq;
+        acc.add(diff.normalize().multiplyScalar(forceMag));
+      });
+      return acc;
+    }
+
+    function leapfrogStep(totalDt) {
+      const steps = Math.ceil(totalDt / maxDt);
+      const dt = totalDt / steps;
+      for(let s = 0; s < steps; s++){
+        objects.forEach(body => {
+          const acc = computeAcceleration(body);
+          body.velocity.add(acc.multiplyScalar(dt/2));
+        });
+        objects.forEach(body => {
+          body.position.add(body.velocity.clone().multiplyScalar(dt));
+          body.mesh.position.copy(body.position);
+        });
+        objects.forEach(body => {
+          const acc = computeAcceleration(body);
+          body.velocity.add(acc.multiplyScalar(dt/2));
+        });
+        handleCollisions();
+      }
+    }
+
+    /***** 5. BODY CLASS *****/
+    class Body {
+      constructor(name, mass, position, velocity, radius, color) {
+        this.name = name;
+        this.mass = mass;
+        this.position = position.clone().multiplyScalar(distanceScale);
+        this.velocity = velocity.clone().multiplyScalar(distanceScale);
+        this.radius = radius;
+        this.color = color;
+        const scaledRadius = radius * distanceScale;
+        const geometry = new THREE.SphereGeometry(scaledRadius, 32, 32);
+        const material = new THREE.MeshPhongMaterial({
+          color: color,
+          emissive: color,
+          emissiveIntensity: 0.5,
+          transparent: true,
+          opacity: 0.9
+        });
+        this.mesh = new THREE.Mesh(geometry, material);
+        this.mesh.position.copy(this.position);
+        this.mesh.userData = { body: this };
+        scene.add(this.mesh);
+        this.pathPoints = [];
+        const lineMaterial = new THREE.LineBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: 0.9
+        });
+        this.pathGeometry = new THREE.BufferGeometry();
+        this.pathGeometry.setFromPoints(this.pathPoints);
+        this.pathLine = new THREE.Line(this.pathGeometry, lineMaterial);
+        scene.add(this.pathLine);
+      }
+    }
+
+    /***** 6. CREATE THE REALISTIC SOLAR SYSTEM *****/
+    function createCelestialBodies() {
+      const holoColor = 0xFF8C00;
+      const sun = new Body(sunData.name, sunData.mass, new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0), sunData.radius, holoColor);
+      objects.push(sun);
+      
+      planetData.forEach(planet => {
+        const inc = deg2rad(planet.i);
+        const omega = deg2rad(planet.ω);
+        const Omega = deg2rad(planet.Ω);
+        const a = planet.a;
+        const e = planet.e;
+        const f = 0;
+        const r = a * (1 - e);
+        const xOrb = r * Math.cos(f);
+        const yOrb = r * Math.sin(f);
+        const v = Math.sqrt(4 * Math.PI * Math.PI * ((1 + e) / (a * (1 - e))));
+        const vxOrb = -v * Math.sin(f);
+        const vyOrb = v * Math.cos(f);
+        
+        const cosOmega = Math.cos(Omega);
+        const sinOmega = Math.sin(Omega);
+        const cosWf = Math.cos(omega + f);
+        const sinWf = Math.sin(omega + f);
+        const cosi = Math.cos(inc);
+        const sini = Math.sin(inc);
+        
+        const posX = r * (cosOmega * cosWf - sinOmega * sinWf * cosi);
+        const posY = r * (sinOmega * cosWf + cosOmega * sinWf * cosi);
+        const posZ = r * (sinWf * sini);
+        const pos = new THREE.Vector3(posX, posZ, posY);
+        
+        const vx = vxOrb * (cosOmega * cosWf - sinOmega * sinWf * cosi) - vyOrb * (cosOmega * sinWf + sinOmega * cosWf * cosi);
+        const vy = vxOrb * (sinOmega * cosWf + cosOmega * sinWf * cosi) - vyOrb * (sinOmega * sinWf - cosOmega * cosWf * cosi);
+        const vz = vxOrb * (sinWf * sini) + vyOrb * (cosWf * sini);
+        const vel = new THREE.Vector3(vx, vz, vy);
+        
+        const body = new Body(planet.name, planet.mass, pos, vel, planet.radius, holoColor);
+        objects.push(body);
+      });
+      
+      // Add the Moon
+      const earth = objects.find(body => body.name === "Earth");
+      if (earth) {
+        const d = 0.00257;
+        const M_earth = earth.mass;
+        const v_rel = Math.sqrt((4 * Math.PI * Math.PI * M_earth) / d);
+        const earthPhysicalPosition = earth.position.clone().divideScalar(distanceScale);
+        const earthPhysicalVelocity = earth.velocity.clone().divideScalar(distanceScale);
+        const relPos = new THREE.Vector3(d, 0, 0);
+        const relVel = new THREE.Vector3(0, 0, v_rel);
+        const moonPhysicalPosition = earthPhysicalPosition.add(relPos);
+        const moonPhysicalVelocity = earthPhysicalVelocity.add(relVel);
+        const moon = new Body("Moon", 3.69e-8, moonPhysicalPosition, moonPhysicalVelocity, 0.001, holoColor);
+        objects.push(moon);
+      }
+      console.log("Solar system bodies created.");
+    }
+
+    /***** 7. COLLISION DETECTION & MERGING *****/
+    function handleCollisions() {
+      for (let i = objects.length - 1; i >= 0; i--) {
+        for (let j = i - 1; j >= 0; j--) {
+          const bodyA = objects[i];
+          const bodyB = objects[j];
+          const diff = bodyA.position.clone().sub(bodyB.position);
+          const dist = diff.length();
+          if (dist < (bodyA.radius + bodyB.radius) * distanceScale * 0.9) {
+            const newMass = bodyA.mass + bodyB.mass;
+            const newPosition = bodyA.position.clone().multiplyScalar(bodyA.mass)
+                                  .add(bodyB.position.clone().multiplyScalar(bodyB.mass))
+                                  .divideScalar(newMass);
+            const newVelocity = bodyA.velocity.clone().multiplyScalar(bodyA.mass)
+                                  .add(bodyB.velocity.clone().multiplyScalar(bodyB.mass))
+                                  .divideScalar(newMass);
+            const newRadius = Math.cbrt(Math.pow(bodyA.radius,3) + Math.pow(bodyB.radius,3));
+            const mergedBody = new Body(bodyA.name + "+" + bodyB.name, newMass, newPosition, newVelocity, newRadius, bodyA.color);
+            scene.remove(bodyA.mesh);
+            scene.remove(bodyA.pathLine);
+            scene.remove(bodyB.mesh);
+            scene.remove(bodyB.pathLine);
+            objects.splice(i, 1);
+            objects.splice(j, 1);
+            objects.push(mergedBody);
+            console.log("Merged " + bodyA.name + " and " + bodyB.name);
+            return;
+          }
+        }
+      }
+    }
+
+    /***** 8. HUD & DATA HUD UPDATE FUNCTIONS *****/
+    function updateHUD() {
+      document.getElementById("simTime").textContent = "Time: " + simTime.toFixed(2) + " yr";
+      document.getElementById("timeScale").textContent = "Time Scale: " + timeScale.toFixed(1) + "x";
+      document.getElementById("integrator").textContent = "Integrator: " + integrationMethod;
+    }
+    function updateDataHUD() {
+      const totalEnergy = computeTotalEnergy();
+      const totalMomentum = computeTotalMomentum();
+      document.getElementById("totalEnergy").textContent = "Energy: " + totalEnergy.toFixed(2);
+      document.getElementById("totalMomentum").textContent = "Momentum: " + totalMomentum.toFixed(2);
+      
+      // Update chart data arrays
+      timeData.push(simTime.toFixed(2));
+      energyData.push(totalEnergy);
+      momentumData.push(totalMomentum);
+      
+      // Keep only the latest 50 data points
+      if (timeData.length > 50) {
+        timeData.shift();
+        energyData.shift();
+        momentumData.shift();
+      }
+      
+      // Update charts
+      if (energyChart && momentumChart) {
+        energyChart.data.labels = timeData;
+        energyChart.data.datasets[0].data = energyData;
+        energyChart.update();
+        
+        momentumChart.data.labels = timeData;
+        momentumChart.data.datasets[0].data = momentumData;
+        momentumChart.update();
+      }
+    }
+    function updateExtraInfo(body) {
+      document.getElementById("selectedInfo").textContent = "Selected: " + body.name;
+    }
+
+    /***** 9. DIAGNOSTICS: ENERGY & MOMENTUM *****/
+    function computeTotalEnergy() {
+      let kinetic = 0, potential = 0;
+      for (let i = 0; i < objects.length; i++) {
+        kinetic += 0.5 * objects[i].mass * objects[i].velocity.lengthSq();
+        for (let j = i + 1; j < objects.length; j++) {
+          const r = objects[i].position.distanceTo(objects[j].position) + softening;
+          potential += -G_sim * objects[i].mass * objects[j].mass / r;
+        }
+      }
+      return kinetic + potential;
+    }
+    function computeTotalMomentum() {
+      const total = new THREE.Vector3();
+      objects.forEach(body => {
+        total.add(body.velocity.clone().multiplyScalar(body.mass));
+      });
+      return total.length();
+    }
+
+    /***** 10. UPDATE TRAJECTORY PATH LINES *****/
+    function updatePathLines() {
+      objects.forEach(body => {
+        body.pathPoints.push(body.position.clone());
+        if (body.pathPoints.length > maxPathPoints) {
+          body.pathPoints.shift();
+        }
+        body.pathGeometry.setFromPoints(body.pathPoints);
+        body.pathGeometry.attributes.position.needsUpdate = true;
+      });
+    }
+
+    /***** 11. SIMULATION LOOP *****/
+    function animate() {
+      requestAnimationFrame(animate);
+      const totalDt = baseDt * timeScale;
+      if (integrationMethod === "RK4") {
+        rk4Step(totalDt);
+      } else {
+        leapfrogStep(totalDt);
+      }
+      updatePathLines();
+      updateHUD();
+      if (dataHudVisible) {
+        updateDataHUD();
+      }
+      controls.update();
+      renderer.render(scene, camera);
+      simTime += totalDt;
+    }
+    
+    /***** 12. INITIALIZE CHARTS *****/
+    function initCharts() {
+      const energyCtx = document.getElementById('energyChart').getContext('2d');
+      energyChart = new Chart(energyCtx, {
+        type: 'line',
+        data: {
+          labels: timeData,
+          datasets: [{
+            label: 'Total Energy',
+            data: energyData,
+            borderColor: 'rgba(255,140,0,1)',
+            backgroundColor: 'rgba(255,140,0,0.2)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          animation: false,
+          responsive: false,
+          scales: {
+            x: {
+              display: true,
+              title: { display: true, text: 'Time (yr)' },
+              ticks: { color: '#FF8C00' }
+            },
+            y: {
+              display: true,
+              title: { display: true, text: 'Energy' },
+              ticks: { color: '#FF8C00' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#FF8C00' } }
+          }
+        }
+      });
+      
+      const momentumCtx = document.getElementById('momentumChart').getContext('2d');
+      momentumChart = new Chart(momentumCtx, {
+        type: 'line',
+        data: {
+          labels: timeData,
+          datasets: [{
+            label: 'Total Momentum',
+            data: momentumData,
+            borderColor: 'rgba(255,140,0,1)',
+            backgroundColor: 'rgba(255,140,0,0.2)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          animation: false,
+          responsive: false,
+          scales: {
+            x: {
+              display: true,
+              title: { display: true, text: 'Time (yr)' },
+              ticks: { color: '#FF8C00' }
+            },
+            y: {
+              display: true,
+              title: { display: true, text: 'Momentum' },
+              ticks: { color: '#FF8C00' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#FF8C00' } }
+          }
+        }
+      });
+    }
+
+    /***** 13. INTERACTIVE CONTROLS & RAYCASTING *****/
+    document.getElementById("speedUp").addEventListener("click", () => {
+      timeScale *= 1.2;
+      console.log("Speed up clicked. New time scale:", timeScale);
+    });
+    document.getElementById("slowDown").addEventListener("click", () => {
+      timeScale /= 1.2;
+      console.log("Slow down clicked. New time scale:", timeScale);
+    });
+    document.getElementById("resetSim").addEventListener("click", () => {
+      objects.forEach(body => {
+        scene.remove(body.mesh);
+        scene.remove(body.pathLine);
+      });
+      objects.length = 0;
+      simTime = 0;
+      // Reset chart data arrays
+      timeData.length = 0;
+      energyData.length = 0;
+      momentumData.length = 0;
+      createCelestialBodies();
+      console.log("Simulation reset.");
+    });
+    document.getElementById("toggleDataHud").addEventListener("click", () => {
+      dataHudVisible = !dataHudVisible;
+      document.getElementById("dataHud").style.display = dataHudVisible ? "block" : "none";
+    });
+    document.getElementById("toggleIntegrator").addEventListener("click", () => {
+      integrationMethod = (integrationMethod === "RK4") ? "Leapfrog" : "RK4";
+      console.log("Integrator toggled. New integrator:", integrationMethod);
+    });
+    document.getElementById("addBody").addEventListener("click", () => {
+      const name = document.getElementById("bodyName").value || "Custom Body";
+      const mass = parseFloat(document.getElementById("bodyMass").value);
+      const x = parseFloat(document.getElementById("bodyX").value);
+      const y = parseFloat(document.getElementById("bodyY").value);
+      const z = parseFloat(document.getElementById("bodyZ").value);
+      const vx = parseFloat(document.getElementById("bodyVx").value);
+      const vy = parseFloat(document.getElementById("bodyVy").value);
+      const vz = parseFloat(document.getElementById("bodyVz").value);
+
+      if (isNaN(mass) || isNaN(x) || isNaN(y) || isNaN(z) || isNaN(vx) || isNaN(vy) || isNaN(vz)) {
+        alert("Please enter valid numbers for all fields.");
+        return;
+      }
+
+      const position = new THREE.Vector3(x, y, z);
+      const velocity = new THREE.Vector3(vx, vy, vz);
+      const color = 0xFF8C00;
+      const radius = 0.01; // Default radius for custom bodies
+
+      const body = new Body(name, mass, position, velocity, radius, color);
+      objects.push(body);
+      console.log("Added body:", name);
+    });
+    document.getElementById("exportData").addEventListener("click", () => {
+      let csvContent = "Name,Mass (M_sun),X (AU),Y (AU),Z (AU),Vx (AU/year),Vy (AU/year),Vz (AU/year)\n";
+      objects.forEach(body => {
+        const pos = body.position.clone().divideScalar(distanceScale);
+        const vel = body.velocity.clone().divideScalar(distanceScale);
+        csvContent += `${body.name},${body.mass},${pos.x},${pos.y},${pos.z},${vel.x},${vel.y},${vel.z}\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'simulation_data.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    window.addEventListener("click", (event) => {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(scene.children);
+      if (intersects.length > 0) {
+        const selectedBody = intersects[0].object.userData.body;
+        if (selectedBody) {
+          controls.target.copy(selectedBody.mesh.position);
+          updateExtraInfo(selectedBody);
+          console.log("Selected:", selectedBody.name);
+        }
+      }
+    });
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    /***** 14. INITIALIZE & START SIMULATION *****/
+    console.log("Page loaded. Starting simulation.");
+    initScene();
+    createCelestialBodies();
+    initCharts();
+    animate();
+  </script>
+</body>
+</html>
