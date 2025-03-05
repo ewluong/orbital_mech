@@ -4,145 +4,108 @@
   <meta charset="UTF-8">
   <title>3D Holographic Solar System Simulator</title>
   <style>
-    /* Global Styles with fixed holographic grid background */
     body {
       margin: 0;
       overflow: hidden;
-      background-color: #111;
-      background-image: 
-        repeating-linear-gradient(
-          0deg,
-          rgba(255,140,0,0.3) 0px,
-          rgba(255,140,0,0.3) 1px,
-          transparent 1px,
-          transparent 20px
-        ),
-        repeating-linear-gradient(
-          90deg,
-          rgba(255,140,0,0.3) 0px,
-          rgba(255,140,0,0.3) 1px,
-          transparent 1px,
-          transparent 20px
-        );
-      background-size: 20px 20px;
+      background: #111 url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="20" height="20"%3E%3Cpath d="M0 0h1v20H0zM0 0v1h20v-1z" fill="rgba(255,140,0,0.3)" /%3E%3C/svg%3E');
       font-family: 'Consolas', 'Courier New', monospace;
       color: #FF8C00;
     }
-    /* Main HUD (top-left) */
-    #hud {
+    #hud, #dataHud, #controls, #addOrbitPanel {
       position: absolute;
-      top: 10px;
-      left: 10px;
       padding: 8px 12px;
       background: linear-gradient(135deg, rgba(255,140,0,0.25), rgba(0,0,0,0.25));
       border: 1px solid rgba(255,140,0,0.8);
       box-shadow: 0 0 8px rgba(255,140,0,0.8);
       backdrop-filter: blur(5px);
       z-index: 10;
-      max-width: 250px;
-    }
-    #hud div {
-      margin-bottom: 3px;
       font-size: 13px;
       text-shadow: 0 0 4px rgba(255,140,0,0.8);
     }
-    /* Data HUD (bottom-right) - start visible */
-    #dataHud {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      padding: 8px 12px;
-      background: linear-gradient(135deg, rgba(255,140,0,0.25), rgba(0,0,0,0.25));
-      border: 1px solid rgba(255,140,0,0.8);
-      box-shadow: 0 0 8px rgba(255,140,0,0.8);
-      backdrop-filter: blur(5px);
-      z-index: 10;
-      max-width: 350px;
-      display: block;
-    }
-    #dataHud div {
-      margin-bottom: 3px;
-      font-size: 13px;
-      text-shadow: 0 0 4px rgba(255,140,0,0.8);
-    }
-    /* Chart canvas styling */
-    .chart-canvas {
-      background: rgba(0, 0, 0, 0.1);
-      border: 1px solid rgba(255,140,0,0.5);
-      margin-top: 5px;
-    }
-    /* Controls (bottom-left) */
-    #controls {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      padding: 6px 10px;
-      background: rgba(0,0,0,0.4);
-      border: 1px solid rgba(255,140,0,0.8);
-      box-shadow: 0 0 8px rgba(255,140,0,0.8);
-      backdrop-filter: blur(3px);
-      z-index: 10;
-    }
-    #controls button {
+    #hud { top: 10px; left: 10px; max-width: 250px; }
+    #dataHud { bottom: 10px; right: 10px; max-width: 350px; display: block; }
+    #controls { bottom: 10px; left: 10px; }
+    #addOrbitPanel { bottom: 60px; left: 10px; max-width: 300px; }
+    #hud div, #dataHud div { margin-bottom: 3px; }
+    .chart-canvas { background: rgba(0,0,0,0.1); border: 1px solid rgba(255,140,0,0.5); margin-top: 5px; }
+    #controls button, #addOrbitPanel button {
       background: transparent;
       border: 1px solid rgba(255,140,0,0.8);
       color: #FF8C00;
       padding: 4px 8px;
-      margin-right: 4px;
+      margin: 0 4px 0 0;
       cursor: pointer;
       font-size: 11px;
       transition: background 0.3s;
     }
-    #controls button:hover {
-      background: rgba(255,140,0,0.2);
-    }
-    /* Add Body Form */
-    #addBodyForm {
-      position: absolute;
-      bottom: 60px;
-      left: 10px;
-      padding: 10px;
-      background: rgba(0,0,0,0.4);
-      border: 1px solid rgba(255,140,0,0.8);
-      box-shadow: 0 0 8px rgba(255,140,0,0.8);
-      backdrop-filter: blur(3px);
-      z-index: 10;
-    }
-    #addBodyForm input {
-      margin: 2px;
-      padding: 2px;
-      font-size: 12px;
-    }
-    #addBodyForm button {
+    #controls button:hover, #addOrbitPanel button:hover { background: rgba(255,140,0,0.2); }
+    #addOrbitPanel h3 { margin: 0 0 8px; }
+    #addOrbitPanel label { display: inline-block; width: 180px; margin-top: 4px; }
+    #addOrbitPanel span { display: inline-block; width: 40px; text-align: right; }
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
       background: transparent;
+      margin: 8px 0;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 8px;
+      background: linear-gradient(90deg, rgba(255,140,0,0.3), rgba(255,140,0,0.6));
       border: 1px solid rgba(255,140,0,0.8);
-      color: #FF8C00;
-      padding: 4px 8px;
-      cursor: pointer;
-      font-size: 11px;
+      border-radius: 4px;
+      box-shadow: 0 0 6px rgba(255,140,0,0.8);
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 20px;
+      width: 20px;
+      border-radius: 50%;
+      background: #FF8C00;
+      border: 1px solid rgba(255,140,0,0.8);
+      box-shadow: 0 0 6px rgba(255,140,0,0.8);
+      margin-top: -6px;
+    }
+    input[type="range"]:focus { outline: none; }
+    input[type="range"]::-moz-range-track {
+      height: 8px;
+      background: linear-gradient(90deg, rgba(255,140,0,0.3), rgba(255,140,0,0.6));
+      border: 1px solid rgba(255,140,0,0.8);
+      border-radius: 4px;
+    }
+    input[type="range"]::-moz-range-thumb {
+      height: 20px;
+      width: 20px;
+      border-radius: 50%;
+      background: #FF8C00;
+      border: 1px solid rgba(255,140,0,0.8);
+      box-shadow: 0 0 6px rgba(255,140,0,0.8);
     }
   </style>
-  <!-- Load Three.js, TrackballControls, and Chart.js -->
   <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
   <script src="https://unpkg.com/three@0.128.0/examples/js/controls/TrackballControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <!-- Main HUD -->
   <div id="hud">
     <div id="simTime">Time: 0 yr</div>
     <div id="timeScale">Time Scale: 1x</div>
     <div id="integrator">Integrator: RK4</div>
     <div id="selectedInfo"></div>
   </div>
-  <!-- Data HUD with Live Charts (now visible by default) -->
   <div id="dataHud">
     <div id="totalEnergy">Energy: --</div>
     <div id="totalMomentum">Momentum: --</div>
+    <div id="kineticEnergy">Kinetic Energy: --</div>
+    <div id="potentialEnergy">Potential Energy: --</div>
+    <div id="angularMomentumValue">Angular Momentum: --</div>
+    <div id="centerOfMass">Center of Mass: ( -- , -- )</div>
     <canvas id="energyChart" class="chart-canvas" width="300" height="150"></canvas>
     <canvas id="momentumChart" class="chart-canvas" width="300" height="150"></canvas>
+    <canvas id="kineticChart" class="chart-canvas" width="300" height="150"></canvas>
+    <canvas id="potentialChart" class="chart-canvas" width="300" height="150"></canvas>
+    <canvas id="angularMomentumChart" class="chart-canvas" width="300" height="150"></canvas>
+    <canvas id="comChart" class="chart-canvas" width="300" height="150"></canvas>
   </div>
-  <!-- Controls -->
   <div id="controls">
     <button id="speedUp">Speed Up</button>
     <button id="slowDown">Slow Down</button>
@@ -151,626 +114,572 @@
     <button id="toggleIntegrator">Toggle Integrator</button>
     <button id="exportData">Export Data</button>
   </div>
-  <!-- Add Body Form -->
-  <div id="addBodyForm">
-    <h3>Add Custom Body</h3>
-    <input type="text" id="bodyName" placeholder="Name">
-    <input type="number" id="bodyMass" placeholder="Mass (M_sun)">
-    <input type="number" id="bodyX" placeholder="X (AU)">
-    <input type="number" id="bodyY" placeholder="Y (AU)">
-    <input type="number" id="bodyZ" placeholder="Z (AU)">
-    <input type="number" id="bodyVx" placeholder="Vx (AU/year)">
-    <input type="number" id="bodyVy" placeholder="Vy (AU/year)">
-    <input type="number" id="bodyVz" placeholder="Vz (AU/year)">
-    <button id="addBody">Add Body</button>
+  <div id="addOrbitPanel">
+    <h3>Add Custom Orbit</h3>
+    <label for="massSlider">Mass:</label>
+    <input type="range" id="massSlider" min="0.00000001" max="0.01" step="0.00000001" value="0.001">
+    <span id="massValue">0.001</span><br>
+    <label for="aSlider">Semi-major axis (AU):</label>
+    <input type="range" id="aSlider" min="0.1" max="35" step="0.1" value="1">
+    <span id="aValue">1</span><br>
+    <label for="eSlider">Eccentricity:</label>
+    <input type="range" id="eSlider" min="0" max="0.9" step="0.01" value="0">
+    <span id="eValue">0</span><br>
+    <label for="iSlider">Inclination (deg):</label>
+    <input type="range" id="iSlider" min="0" max="45" step="1" value="0">
+    <span id="iValue">0</span><br>
+    <label for="wSlider">Arg. of Periapsis (deg):</label>
+    <input type="range" id="wSlider" min="0" max="360" step="1" value="0">
+    <span id="wValue">0</span><br>
+    <label for="OmegaSlider">Long. Asc. Node (deg):</label>
+    <input type="range" id="OmegaSlider" min="0" max="360" step="1" value="0">
+    <span id="OmegaValue">0</span><br>
+    <label for="vSlider">True Anomaly (deg):</label>
+    <input type="range" id="vSlider" min="0" max="360" step="1" value="0">
+    <span id="vValue">0</span><br>
+    <button id="addOrbitButton">Add Orbit</button>
   </div>
-  <!-- Simulation Script -->
+
   <script>
-    /***** UTILITY FUNCTIONS *****/
-    function deg2rad(deg) {
-      return deg * Math.PI / 180;
-    }
+    'use strict';
+    (function(){
+      /* Constants & Data */
+      const DEG_TO_RAD = Math.PI / 180,
+            DISTANCE_SCALE = 50,
+            G_SIM = 4 * Math.PI * Math.PI * Math.pow(DISTANCE_SCALE, 3),
+            SOFTENING = 0.001,
+            BASE_DT = 0.016,
+            MAX_DT = 0.001,
+            MAX_PATH_POINTS = 300,
+            CHART_UPDATE_INTERVAL = 0.5,
+            HOLO_COLOR = 0xFF8C00;
+      
+      const PLANET_DATA = [
+        { name: "Mercury", a: 0.387, e: 0.2056, i: 7, ω: 29, Ω: 48, mass: 3.3e-7, radius: 0.003 },
+        { name: "Venus",   a: 0.723, e: 0.0068, i: 3.4, ω: 54, Ω: 76, mass: 2.45e-6, radius: 0.007 },
+        { name: "Earth",   a: 1.0,   e: 0.0167, i: 0,  ω: 114,Ω: -11, mass: 3e-6, radius: 0.008 },
+        { name: "Mars",    a: 1.524, e: 0.0934, i: 1.85,ω: 286,Ω: 49, mass: 3.2e-7, radius: 0.004 },
+        { name: "Jupiter", a: 5.203, e: 0.0489, i: 1.3, ω: 275,Ω: 100, mass: 0.001, radius: 0.1 },
+        { name: "Saturn",  a: 9.537, e: 0.0565, i: 2.49,ω: 339,Ω: 113, mass: 0.0003, radius: 0.09 },
+        { name: "Uranus",  a: 19.191,e: 0.0463, i: 0.77,ω: 96, Ω: 74, mass: 4.37e-5, radius: 0.04 },
+        { name: "Neptune", a: 30.07, e: 0.0086, i: 1.77,ω: 276,Ω: 131, mass: 5.15e-5, radius: 0.04 }
+      ];
+      const SUN_DATA = { name: "Sun", mass: 1, radius: 0.1 };
 
-    /***** NORMALIZATION & SCALING *****/
-    const distanceScale = 50;  // 1 AU becomes 50 units
-    const G_sim = 4 * Math.PI * Math.PI * Math.pow(distanceScale, 3);
+      /* Global State */
+      let scene, camera, renderer, controls, raycaster, mouse;
+      const objects = [];
+      let simTime = 0, timeScale = 1, integrationMethod = "RK4", dataHudVisible = true;
+      const timeData = [], energyData = [], momentumData = [], kineticData = [], potentialData = [], angularMomentumData = [];
+      let energyChart, momentumChart, kineticChart, potentialChart, angularMomentumChart, comChart;
+      let previewOrbitLine = null, previewBody = null;
+      let lastChartUpdateTime = 0;
 
-    /***** PLANETARY DATA with orbital elements *****/
-    const planetData = [
-      { name: "Mercury", a: 0.387, e: 0.2056, i: 7, ω: 29, Ω: 48, mass: 3.3e-7, radius: 0.003 },
-      { name: "Venus", a: 0.723, e: 0.0068, i: 3.4, ω: 54, Ω: 76, mass: 2.45e-6, radius: 0.007 },
-      { name: "Earth", a: 1.0, e: 0.0167, i: 0, ω: 114, Ω: -11, mass: 3e-6, radius: 0.008 },
-      { name: "Mars", a: 1.524, e: 0.0934, i: 1.85, ω: 286, Ω: 49, mass: 3.2e-7, radius: 0.004 },
-      { name: "Jupiter", a: 5.203, e: 0.0489, i: 1.3, ω: 275, Ω: 100, mass: 0.001, radius: 0.1 },
-      { name: "Saturn", a: 9.537, e: 0.0565, i: 2.49, ω: 339, Ω: 113, mass: 0.0003, radius: 0.09 },
-      { name: "Uranus", a: 19.191, e: 0.0463, i: 0.77, ω: 96, Ω: 74, mass: 4.37e-5, radius: 0.04 },
-      { name: "Neptune", a: 30.07, e: 0.0086, i: 1.77, ω: 276, Ω: 131, mass: 5.15e-5, radius: 0.04 }
-    ];
-    const sunData = { name: "Sun", mass: 1, radius: 0.1 };
+      /* Cached DOM Elements */
+      const DOM = {
+        simTime: document.getElementById("simTime"),
+        timeScale: document.getElementById("timeScale"),
+        integrator: document.getElementById("integrator"),
+        selectedInfo: document.getElementById("selectedInfo"),
+        totalEnergy: document.getElementById("totalEnergy"),
+        totalMomentum: document.getElementById("totalMomentum"),
+        kineticEnergy: document.getElementById("kineticEnergy"),
+        potentialEnergy: document.getElementById("potentialEnergy"),
+        angularMomentumValue: document.getElementById("angularMomentumValue"),
+        centerOfMass: document.getElementById("centerOfMass"),
+        dataHud: document.getElementById("dataHud")
+      };
 
-    /***** GLOBAL VARIABLES *****/
-    let scene, camera, renderer, controls;
-    const objects = [];
-    const softening = 0.001;
-    let simTime = 0;
-    let timeScale = 1;
-    const maxPathPoints = 300;
-    let dataHudVisible = true;
-    const baseDt = 0.016;  // Base timestep in years (approx 60 FPS)
-    const maxDt = 0.001;   // Maximum dt per substep for stability
-    let integrationMethod = "RK4";
+      /* Utility Function */
+      const deg2rad = deg => deg * DEG_TO_RAD;
 
-    // Data arrays for live charts
-    const timeData = [];
-    const energyData = [];
-    const momentumData = [];
-
-    // Chart instances
-    let energyChart, momentumChart;
-
-    /***** 1. INITIALIZE THE SCENE *****/
-    function initScene() {
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1e6);
-      camera.position.set(0, 40, 100);
-      camera.lookAt(new THREE.Vector3(0,0,0));
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setClearColor(0x000000, 0);
-      document.body.appendChild(renderer.domElement);
-      controls = new THREE.TrackballControls(camera, renderer.domElement);
-      controls.rotateSpeed = 5.0;
-      controls.zoomSpeed = 2.0;
-      controls.panSpeed = 1.0;
-      controls.noRoll = false; // allow roll
-      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-      const pointLight = new THREE.PointLight(0xFF8C00, 1.5, 1e4);
-      pointLight.position.set(50,50,50);
-      scene.add(pointLight);
-      const platform = createHolographicPlatform();
-      scene.add(platform);
-      console.log("Scene initialized.");
-    }
-
-    /***** 2. CREATE HOLOGRAPHIC PLATFORM *****/
-    function createHolographicPlatform() {
-      const group = new THREE.Group();
-      const holoColor = 0xFF8C00;
-      const mainGeometry = new THREE.CircleGeometry(35 * distanceScale, 64);
-      const mainMaterial = new THREE.MeshPhongMaterial({
-        color: holoColor,
-        emissive: holoColor,
-        emissiveIntensity: 0.3,
-        transparent: true,
-        opacity: 0.15,
-        side: THREE.DoubleSide,
-        depthWrite: false
-      });
-      const mainCircle = new THREE.Mesh(mainGeometry, mainMaterial);
-      mainCircle.rotation.x = -Math.PI/2;
-      group.add(mainCircle);
-      const segments = 64;
-      const radii = [35, 25, 15, 5];
-      radii.forEach(radius => {
-        const points = [];
-        for(let i = 0; i <= segments; i++){
-          const theta = (i/segments)*Math.PI*2;
-          points.push(new THREE.Vector3(radius * distanceScale * Math.cos(theta), 0, radius * distanceScale * Math.sin(theta)));
-        }
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = new THREE.LineBasicMaterial({ 
-          color: holoColor, 
-          transparent: true, 
-          opacity: 0.6,
-          depthWrite: false
-        });
-        const ring = new THREE.LineLoop(geometry, material);
-        group.add(ring);
-      });
-      group.position.y = -0.05;
-      return group;
-    }
-
-    /***** 3. PHYSICS: RK4 INTEGRATION WITH SUBSTEPPING *****/
-    function computeDerivatives(states) {
-      const derivatives = [];
-      for(let i = 0; i < states.length; i++){
-        const dr = states[i].v.clone();
-        const dv = new THREE.Vector3();
-        for(let j = 0; j < states.length; j++){
-          if(i === j) continue;
-          const diff = states[j].r.clone().sub(states[i].r);
-          const distanceSq = diff.lengthSq() + softening*softening;
-          const forceMag = (G_sim * states[j].mass) / distanceSq;
-          dv.add(diff.normalize().multiplyScalar(forceMag));
-        }
-        derivatives.push({ dr: dr, dv: dv });
+      /* Scene Initialization */
+      function initScene(){
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1e6);
+        camera.position.set(0, 40, 100);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000, 0);
+        document.body.appendChild(renderer.domElement);
+        controls = new THREE.TrackballControls(camera, renderer.domElement);
+        controls.rotateSpeed = 5.0;
+        controls.zoomSpeed = 2.0;
+        controls.panSpeed = 1.0;
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const pointLight = new THREE.PointLight(HOLO_COLOR, 1.5, 1e4);
+        pointLight.position.set(50, 50, 50);
+        scene.add(pointLight);
+        scene.add(createHoloPlatform());
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
       }
-      return derivatives;
-    }
-
-    function rk4Step(totalDt) {
-      const steps = Math.ceil(totalDt / maxDt);
-      const dt = totalDt / steps;
-      for(let s = 0; s < steps; s++){
-        const n = objects.length;
-        const state0 = objects.map(body => ({
-          r: body.position.clone(),
-          v: body.velocity.clone(),
-          mass: body.mass
-        }));
-        const k1 = computeDerivatives(state0);
-        const state2 = [];
-        for(let i = 0; i < n; i++){
-          state2.push({
-            r: state0[i].r.clone().add(k1[i].dr.clone().multiplyScalar(dt/2)),
-            v: state0[i].v.clone().add(k1[i].dv.clone().multiplyScalar(dt/2)),
-            mass: state0[i].mass
-          });
-        }
-        const k2 = computeDerivatives(state2);
-        const state3 = [];
-        for(let i = 0; i < n; i++){
-          state3.push({
-            r: state0[i].r.clone().add(k2[i].dr.clone().multiplyScalar(dt/2)),
-            v: state0[i].v.clone().add(k2[i].dv.clone().multiplyScalar(dt/2)),
-            mass: state0[i].mass
-          });
-        }
-        const k3 = computeDerivatives(state3);
-        const state4 = [];
-        for(let i = 0; i < n; i++){
-          state4.push({
-            r: state0[i].r.clone().add(k3[i].dr.clone().multiplyScalar(dt)),
-            v: state0[i].v.clone().add(k3[i].dv.clone().multiplyScalar(dt)),
-            mass: state0[i].mass
-          });
-        }
-        const k4 = computeDerivatives(state4);
-        for(let i = 0; i < n; i++){
-          const dr = k1[i].dr.clone()
-                      .add(k2[i].dr.clone().multiplyScalar(2))
-                      .add(k3[i].dr.clone().multiplyScalar(2))
-                      .add(k4[i].dr.clone())
-                      .multiplyScalar(dt/6);
-          const dv = k1[i].dv.clone()
-                      .add(k2[i].dv.clone().multiplyScalar(2))
-                      .add(k3[i].dv.clone().multiplyScalar(2))
-                      .add(k4[i].dv.clone())
-                      .multiplyScalar(dt/6);
-          objects[i].position.add(dr);
-          objects[i].velocity.add(dv);
-          objects[i].mesh.position.copy(objects[i].position);
-        }
-      }
-      handleCollisions();
-    }
-
-    /***** 4. PHYSICS: LEAPFROG INTEGRATION *****/
-    function computeAcceleration(body) {
-      const acc = new THREE.Vector3();
-      objects.forEach(other => {
-        if (other === body) return;
-        const diff = other.position.clone().sub(body.position);
-        const distanceSq = diff.lengthSq() + softening * softening;
-        const forceMag = (G_sim * other.mass) / distanceSq;
-        acc.add(diff.normalize().multiplyScalar(forceMag));
-      });
-      return acc;
-    }
-
-    function leapfrogStep(totalDt) {
-      const steps = Math.ceil(totalDt / maxDt);
-      const dt = totalDt / steps;
-      for(let s = 0; s < steps; s++){
-        objects.forEach(body => {
-          const acc = computeAcceleration(body);
-          body.velocity.add(acc.multiplyScalar(dt/2));
-        });
-        objects.forEach(body => {
-          body.position.add(body.velocity.clone().multiplyScalar(dt));
-          body.mesh.position.copy(body.position);
-        });
-        objects.forEach(body => {
-          const acc = computeAcceleration(body);
-          body.velocity.add(acc.multiplyScalar(dt/2));
-        });
-        handleCollisions();
-      }
-    }
-
-    /***** 5. BODY CLASS *****/
-    class Body {
-      constructor(name, mass, position, velocity, radius, color) {
-        this.name = name;
-        this.mass = mass;
-        this.position = position.clone().multiplyScalar(distanceScale);
-        this.velocity = velocity.clone().multiplyScalar(distanceScale);
-        this.radius = radius;
-        this.color = color;
-        const scaledRadius = radius * distanceScale;
-        const geometry = new THREE.SphereGeometry(scaledRadius, 32, 32);
+      function createHoloPlatform(){
+        const geometry = new THREE.CircleGeometry(35 * DISTANCE_SCALE, 64);
         const material = new THREE.MeshPhongMaterial({
-          color: color,
-          emissive: color,
-          emissiveIntensity: 0.5,
-          transparent: true,
-          opacity: 0.9
+          color: HOLO_COLOR, emissive: HOLO_COLOR, emissiveIntensity: 0.3,
+          transparent: true, opacity: 0.15, side: THREE.DoubleSide, depthWrite: false
         });
-        this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.position.copy(this.position);
-        this.mesh.userData = { body: this };
-        scene.add(this.mesh);
-        this.pathPoints = [];
-        const lineMaterial = new THREE.LineBasicMaterial({
-          color: color,
-          transparent: true,
-          opacity: 0.9
+        const circle = new THREE.Mesh(geometry, material);
+        circle.rotation.x = -Math.PI / 2;
+        const group = new THREE.Group();
+        group.add(circle);
+        group.position.y = -0.05;
+        return group;
+      }
+
+      /* Physics Integration */
+      function computeDerivatives(states){
+        return states.map((s, i) => {
+          const dr = s.v.clone();
+          const dv = new THREE.Vector3();
+          states.forEach((other, j) => {
+            if(i === j) return;
+            const diff = other.r.clone().sub(s.r);
+            const distanceSq = diff.lengthSq() + SOFTENING * SOFTENING;
+            dv.add(diff.normalize().multiplyScalar(G_SIM * other.mass / distanceSq));
+          });
+          return { dr, dv };
         });
-        this.pathGeometry = new THREE.BufferGeometry();
-        this.pathGeometry.setFromPoints(this.pathPoints);
-        this.pathLine = new THREE.Line(this.pathGeometry, lineMaterial);
-        scene.add(this.pathLine);
       }
-    }
 
-    /***** 6. CREATE THE REALISTIC SOLAR SYSTEM *****/
-    function createCelestialBodies() {
-      const holoColor = 0xFF8C00;
-      const sun = new Body(sunData.name, sunData.mass, new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0), sunData.radius, holoColor);
-      objects.push(sun);
-      
-      planetData.forEach(planet => {
-        // Exaggerate the orbital inclination for a more 3D effect
-        const exaggeration = 5;
-        const inc = deg2rad(planet.i * exaggeration);
-        const omega = deg2rad(planet.ω);
-        const Omega = deg2rad(planet.Ω);
-        const a = planet.a;
-        const e = planet.e;
-        const f = 0;
-        const r = a * (1 - e);
-        const xOrb = r * Math.cos(f);
-        const yOrb = r * Math.sin(f);
-        const v = Math.sqrt(4 * Math.PI * Math.PI * ((1 + e) / (a * (1 - e))));
-        const vxOrb = -v * Math.sin(f);
-        const vyOrb = v * Math.cos(f);
-        
-        const cosOmega = Math.cos(Omega);
-        const sinOmega = Math.sin(Omega);
-        const cosWf = Math.cos(omega + f);
-        const sinWf = Math.sin(omega + f);
-        const cosi = Math.cos(inc);
-        const sini = Math.sin(inc);
-        
-        const posX = r * (cosOmega * cosWf - sinOmega * sinWf * cosi);
-        const posY = r * (sinOmega * cosWf + cosOmega * sinWf * cosi);
-        const posZ = r * (sinWf * sini);
-        const pos = new THREE.Vector3(posX, posZ, posY);
-        
-        const vx = vxOrb * (cosOmega * cosWf - sinOmega * sinWf * cosi) - vyOrb * (cosOmega * sinWf + sinOmega * cosWf * cosi);
-        const vy = vxOrb * (sinOmega * cosWf + cosOmega * sinWf * cosi) - vyOrb * (sinOmega * sinWf - cosOmega * cosWf * cosi);
-        const vz = vxOrb * (sinWf * sini) + vyOrb * (cosWf * sini);
-        const vel = new THREE.Vector3(vx, vz, vy);
-        
-        const body = new Body(planet.name, planet.mass, pos, vel, planet.radius, holoColor);
-        objects.push(body);
-      });
-      
-      // Add the Moon
-      const earth = objects.find(body => body.name === "Earth");
-      if (earth) {
-        const d = 0.00257;
-        const M_earth = earth.mass;
-        const v_rel = Math.sqrt((4 * Math.PI * Math.PI * M_earth) / d);
-        const earthPhysicalPosition = earth.position.clone().divideScalar(distanceScale);
-        const earthPhysicalVelocity = earth.velocity.clone().divideScalar(distanceScale);
-        const relPos = new THREE.Vector3(d, 0, 0);
-        const relVel = new THREE.Vector3(0, 0, v_rel);
-        const moonPhysicalPosition = earthPhysicalPosition.add(relPos);
-        const moonPhysicalVelocity = earthPhysicalVelocity.add(relVel);
-        const moon = new Body("Moon", 3.69e-8, moonPhysicalPosition, moonPhysicalVelocity, 0.001, holoColor);
-        objects.push(moon);
-      }
-      console.log("Solar system bodies created.");
-    }
-
-    /***** 7. COLLISION DETECTION & MERGING *****/
-    function handleCollisions() {
-      for (let i = objects.length - 1; i >= 0; i--) {
-        for (let j = i - 1; j >= 0; j--) {
-          const bodyA = objects[i];
-          const bodyB = objects[j];
-          const diff = bodyA.position.clone().sub(bodyB.position);
-          const dist = diff.length();
-          if (dist < (bodyA.radius + bodyB.radius) * distanceScale * 0.9) {
-            const newMass = bodyA.mass + bodyB.mass;
-            const newPosition = bodyA.position.clone().multiplyScalar(bodyA.mass)
-                                  .add(bodyB.position.clone().multiplyScalar(bodyB.mass))
-                                  .divideScalar(newMass);
-            const newVelocity = bodyA.velocity.clone().multiplyScalar(bodyA.mass)
-                                  .add(bodyB.velocity.clone().multiplyScalar(bodyB.mass))
-                                  .divideScalar(newMass);
-            const newRadius = Math.cbrt(Math.pow(bodyA.radius,3) + Math.pow(bodyB.radius,3));
-            const mergedBody = new Body(bodyA.name + "+" + bodyB.name, newMass, newPosition, newVelocity, newRadius, bodyA.color);
-            scene.remove(bodyA.mesh);
-            scene.remove(bodyA.pathLine);
-            scene.remove(bodyB.mesh);
-            scene.remove(bodyB.pathLine);
-            objects.splice(i, 1);
-            objects.splice(j, 1);
-            objects.push(mergedBody);
-            console.log("Merged " + bodyA.name + " and " + bodyB.name);
-            return;
-          }
+      function rk4Step(totalDt){
+        const steps = Math.ceil(totalDt / MAX_DT);
+        const dt = totalDt / steps;
+        for (let s = 0; s < steps; s++){
+          const state0 = objects.map(b => ({ r: b.position.clone(), v: b.velocity.clone(), mass: b.mass }));
+          const k1 = computeDerivatives(state0);
+          const state2 = state0.map((s, i) => ({
+            r: s.r.clone().add(k1[i].dr.clone().multiplyScalar(dt / 2)),
+            v: s.v.clone().add(k1[i].dv.clone().multiplyScalar(dt / 2)),
+            mass: s.mass
+          }));
+          const k2 = computeDerivatives(state2);
+          const state3 = state0.map((s, i) => ({
+            r: s.r.clone().add(k2[i].dr.clone().multiplyScalar(dt / 2)),
+            v: s.v.clone().add(k2[i].dv.clone().multiplyScalar(dt / 2)),
+            mass: s.mass
+          }));
+          const k3 = computeDerivatives(state3);
+          const state4 = state0.map((s, i) => ({
+            r: s.r.clone().add(k3[i].dr.clone().multiplyScalar(dt)),
+            v: s.v.clone().add(k3[i].dv.clone().multiplyScalar(dt)),
+            mass: s.mass
+          }));
+          const k4 = computeDerivatives(state4);
+          objects.forEach((body, i) => {
+            const dr = k1[i].dr.clone().add(k2[i].dr.clone().multiplyScalar(2))
+                      .add(k3[i].dr.clone().multiplyScalar(2)).add(k4[i].dr.clone()).multiplyScalar(dt / 6);
+            const dv = k1[i].dv.clone().add(k2[i].dv.clone().multiplyScalar(2))
+                      .add(k3[i].dv.clone().multiplyScalar(2)).add(k4[i].dv.clone()).multiplyScalar(dt / 6);
+            body.position.add(dr);
+            body.velocity.add(dv);
+            body.mesh.position.copy(body.position);
+          });
+          handleCollisions();
         }
       }
-    }
 
-    /***** 8. HUD & DATA HUD UPDATE FUNCTIONS *****/
-    function updateHUD() {
-      document.getElementById("simTime").textContent = "Time: " + simTime.toFixed(2) + " yr";
-      document.getElementById("timeScale").textContent = "Time Scale: " + timeScale.toFixed(1) + "x";
-      document.getElementById("integrator").textContent = "Integrator: " + integrationMethod;
-    }
-    function updateDataHUD() {
-      const totalEnergy = computeTotalEnergy();
-      const totalMomentum = computeTotalMomentum();
-      document.getElementById("totalEnergy").textContent = "Energy: " + totalEnergy.toFixed(2);
-      document.getElementById("totalMomentum").textContent = "Momentum: " + totalMomentum.toFixed(2);
-      
-      // Update chart data arrays
-      timeData.push(simTime.toFixed(2));
-      energyData.push(totalEnergy);
-      momentumData.push(totalMomentum);
-      
-      // Keep only the latest 50 data points
-      if (timeData.length > 50) {
-        timeData.shift();
-        energyData.shift();
-        momentumData.shift();
+      function computeAcceleration(body){
+        const acc = new THREE.Vector3();
+        objects.forEach(other => {
+          if (other === body) return;
+          const diff = other.position.clone().sub(body.position);
+          const distanceSq = diff.lengthSq() + SOFTENING * SOFTENING;
+          acc.add(diff.normalize().multiplyScalar(G_SIM * other.mass / distanceSq));
+        });
+        return acc;
       }
-      
-      // Update charts
-      if (energyChart && momentumChart) {
-        energyChart.data.labels = timeData;
-        energyChart.data.datasets[0].data = energyData;
-        energyChart.update();
-        
-        momentumChart.data.labels = timeData;
-        momentumChart.data.datasets[0].data = momentumData;
-        momentumChart.update();
-      }
-    }
-    function updateExtraInfo(body) {
-      document.getElementById("selectedInfo").textContent = "Selected: " + body.name;
-    }
 
-    /***** 9. DIAGNOSTICS: ENERGY & MOMENTUM *****/
-    function computeTotalEnergy() {
-      let kinetic = 0, potential = 0;
-      for (let i = 0; i < objects.length; i++) {
-        kinetic += 0.5 * objects[i].mass * objects[i].velocity.lengthSq();
-        for (let j = i + 1; j < objects.length; j++) {
-          const r = objects[i].position.distanceTo(objects[j].position) + softening;
-          potential += -G_sim * objects[i].mass * objects[j].mass / r;
+      function leapfrogStep(totalDt){
+        const steps = Math.ceil(totalDt / MAX_DT);
+        const dt = totalDt / steps;
+        for (let s = 0; s < steps; s++){
+          objects.forEach(body => body.velocity.add(computeAcceleration(body).multiplyScalar(dt / 2)));
+          objects.forEach(body => {
+            body.position.add(body.velocity.clone().multiplyScalar(dt));
+            body.mesh.position.copy(body.position);
+          });
+          objects.forEach(body => body.velocity.add(computeAcceleration(body).multiplyScalar(dt / 2)));
+          handleCollisions();
         }
       }
-      return kinetic + potential;
-    }
-    function computeTotalMomentum() {
-      const total = new THREE.Vector3();
-      objects.forEach(body => {
-        total.add(body.velocity.clone().multiplyScalar(body.mass));
-      });
-      return total.length();
-    }
 
-    /***** 10. UPDATE TRAJECTORY PATH LINES *****/
-    function updatePathLines() {
-      objects.forEach(body => {
-        body.pathPoints.push(body.position.clone());
-        if (body.pathPoints.length > maxPathPoints) {
-          body.pathPoints.shift();
+      /* Body Class */
+      class Body {
+        constructor(name, mass, position, velocity, radius, color){
+          this.name = name;
+          this.mass = mass;
+          this.position = position.clone();
+          this.velocity = velocity.clone();
+          this.radius = radius;
+          this.color = color;
+          const geometry = new THREE.SphereGeometry(radius * DISTANCE_SCALE, 32, 32);
+          const material = new THREE.MeshPhongMaterial({
+            color, emissive: color, emissiveIntensity: 0.5, transparent: true, opacity: 0.9
+          });
+          this.mesh = new THREE.Mesh(geometry, material);
+          this.mesh.position.copy(this.position);
+          this.mesh.userData.body = this;
+          scene.add(this.mesh);
+          this.pathPoints = [];
+          this.pathGeometry = new THREE.BufferGeometry().setFromPoints(this.pathPoints);
+          this.pathLine = new THREE.Line(this.pathGeometry, new THREE.LineBasicMaterial({
+            color, transparent: true, opacity: 0.9
+          }));
+          scene.add(this.pathLine);
         }
-        body.pathGeometry.setFromPoints(body.pathPoints);
-        body.pathGeometry.attributes.position.needsUpdate = true;
-      });
-    }
+      }
 
-    /***** 11. SIMULATION LOOP *****/
-    function animate() {
-      requestAnimationFrame(animate);
-      const totalDt = baseDt * timeScale;
-      if (integrationMethod === "RK4") {
-        rk4Step(totalDt);
-      } else {
-        leapfrogStep(totalDt);
+      /* Celestial Bodies Creation */
+      function createCelestialBodies(){
+        objects.length = 0;
+        // Sun
+        objects.push(new Body(SUN_DATA.name, SUN_DATA.mass, new THREE.Vector3(), new THREE.Vector3(), SUN_DATA.radius, HOLO_COLOR));
+        // Planets
+        PLANET_DATA.forEach(planet => {
+          const inc = deg2rad(planet.i * 5),
+                omega = deg2rad(planet.ω),
+                Omega = deg2rad(planet.Ω);
+          const { a, e } = planet, f = 0, r = a * (1 - e);
+          const pos = new THREE.Vector3(
+            r * (Math.cos(Omega) * Math.cos(omega + f) - Math.sin(Omega) * Math.sin(omega + f) * Math.cos(inc)),
+            r * Math.sin(omega + f) * Math.sin(inc),
+            r * (Math.sin(Omega) * Math.cos(omega + f) + Math.cos(Omega) * Math.sin(omega + f) * Math.cos(inc))
+          ).multiplyScalar(DISTANCE_SCALE);
+          const v = Math.sqrt(4 * Math.PI * Math.PI * ((1 + e) / (a * (1 - e))));
+          const vel = new THREE.Vector3(
+            -Math.sin(f) * (Math.cos(Omega) * Math.cos(omega + f) - Math.sin(Omega) * Math.sin(omega + f) * Math.cos(inc))
+            - Math.cos(f) * (Math.cos(Omega) * Math.sin(omega + f) + Math.sin(Omega) * Math.cos(omega + f) * Math.cos(inc)),
+            -Math.sin(f) * Math.sin(omega + f) * Math.sin(inc)
+            + Math.cos(f) * Math.cos(omega + f) * Math.sin(inc),
+            -Math.sin(f) * (Math.sin(Omega) * Math.cos(omega + f) + Math.cos(Omega) * Math.sin(omega + f) * Math.cos(inc))
+            - Math.cos(f) * (Math.sin(Omega) * Math.sin(omega + f) - Math.cos(Omega) * Math.cos(omega + f) * Math.cos(inc))
+          ).multiplyScalar(DISTANCE_SCALE * v);
+          objects.push(new Body(planet.name, planet.mass, pos, vel, planet.radius, HOLO_COLOR));
+        });
+        // Moon for Earth
+        const earth = objects.find(b => b.name === "Earth");
+        if (earth) {
+          const d = 0.00257,
+                v_rel = Math.sqrt((4 * Math.PI * Math.PI * earth.mass) / d);
+          const moonPos = earth.position.clone().divideScalar(DISTANCE_SCALE).add(new THREE.Vector3(d, 0, 0)).multiplyScalar(DISTANCE_SCALE);
+          const moonVel = earth.velocity.clone().divideScalar(DISTANCE_SCALE).add(new THREE.Vector3(0, 0, v_rel)).multiplyScalar(DISTANCE_SCALE);
+          objects.push(new Body("Moon", 3.69e-8, moonPos, moonVel, 0.001, HOLO_COLOR));
+        }
       }
-      updatePathLines();
-      updateHUD();
-      if (dataHudVisible) {
-        updateDataHUD();
-      }
-      controls.update();
-      renderer.render(scene, camera);
-      simTime += totalDt;
-    }
-    
-    /***** 12. INITIALIZE CHARTS *****/
-    function initCharts() {
-      const energyCtx = document.getElementById('energyChart').getContext('2d');
-      energyChart = new Chart(energyCtx, {
-        type: 'line',
-        data: {
-          labels: timeData,
-          datasets: [{
-            label: 'Total Energy',
-            data: energyData,
-            borderColor: 'rgba(255,140,0,1)',
-            backgroundColor: 'rgba(255,140,0,0.2)',
-            fill: true,
-            tension: 0.3,
-            pointRadius: 0
-          }]
-        },
-        options: {
-          animation: false,
-          responsive: false,
-          scales: {
-            x: {
-              display: true,
-              title: { display: true, text: 'Time (yr)' },
-              ticks: { color: '#FF8C00' }
-            },
-            y: {
-              display: true,
-              title: { display: true, text: 'Energy' },
-              ticks: { color: '#FF8C00' }
+
+      /* Collision Handling */
+      function handleCollisions(){
+        for (let i = objects.length - 1; i >= 0; i--){
+          for (let j = i - 1; j >= 0; j--){
+            const a = objects[i], b = objects[j];
+            if (a.position.distanceTo(b.position) < (a.radius + b.radius) * DISTANCE_SCALE * 0.9) {
+              const newMass = a.mass + b.mass;
+              const newPos = a.position.clone().multiplyScalar(a.mass).add(b.position.clone().multiplyScalar(b.mass)).divideScalar(newMass);
+              const newVel = a.velocity.clone().multiplyScalar(a.mass).add(b.velocity.clone().multiplyScalar(b.mass)).divideScalar(newMass);
+              const newRadius = Math.cbrt(Math.pow(a.radius, 3) + Math.pow(b.radius, 3));
+              const merged = new Body(`${a.name}+${b.name}`, newMass, newPos, newVel, newRadius, HOLO_COLOR);
+              scene.remove(a.mesh); scene.remove(a.pathLine);
+              scene.remove(b.mesh); scene.remove(b.pathLine);
+              objects.splice(i, 1);
+              objects.splice(j, 1);
+              objects.push(merged);
+              return;
             }
-          },
-          plugins: {
-            legend: { labels: { color: '#FF8C00' } }
           }
         }
-      });
-      
-      const momentumCtx = document.getElementById('momentumChart').getContext('2d');
-      momentumChart = new Chart(momentumCtx, {
-        type: 'line',
-        data: {
-          labels: timeData,
-          datasets: [{
-            label: 'Total Momentum',
-            data: momentumData,
-            borderColor: 'rgba(255,140,0,1)',
-            backgroundColor: 'rgba(255,140,0,0.2)',
-            fill: true,
-            tension: 0.3,
-            pointRadius: 0
-          }]
-        },
-        options: {
-          animation: false,
-          responsive: false,
-          scales: {
-            x: {
-              display: true,
-              title: { display: true, text: 'Time (yr)' },
-              ticks: { color: '#FF8C00' }
-            },
-            y: {
-              display: true,
-              title: { display: true, text: 'Momentum' },
-              ticks: { color: '#FF8C00' }
+      }
+
+      /* Diagnostics */
+      const computeKineticEnergy = () => objects.reduce((ke, b) => ke + 0.5 * b.mass * b.velocity.lengthSq(), 0);
+      const computePotentialEnergy = () => {
+        let pe = 0;
+        for (let i = 0; i < objects.length; i++){
+          for (let j = i + 1; j < objects.length; j++){
+            pe -= G_SIM * objects[i].mass * objects[j].mass / (objects[i].position.distanceTo(objects[j].position) + SOFTENING);
+          }
+        }
+        return pe;
+      };
+      const computeTotalEnergy = () => computeKineticEnergy() + computePotentialEnergy();
+      const computeTotalMomentum = () => objects.reduce((p, b) => p.add(b.velocity.clone().multiplyScalar(b.mass)), new THREE.Vector3()).length();
+      const computeTotalAngularMomentum = () => objects.reduce((L, b) => L.add(new THREE.Vector3().crossVectors(b.position, b.velocity.clone().multiplyScalar(b.mass))), new THREE.Vector3()).length();
+      const computeCenterOfMass = () => {
+        const com = objects.reduce((c, b) => c.add(b.position.clone().multiplyScalar(b.mass)), new THREE.Vector3());
+        const totalMass = objects.reduce((m, b) => m + b.mass, 0);
+        return totalMass > 0 ? com.divideScalar(totalMass) : com;
+      };
+
+      /* HUD Updates */
+      function updateHUD(){
+        DOM.simTime.textContent = `Time: ${simTime.toFixed(2)} yr`;
+        DOM.timeScale.textContent = `Time Scale: ${timeScale.toFixed(1)}x`;
+        DOM.integrator.textContent = `Integrator: ${integrationMethod}`;
+      }
+
+      function updateDataHUD(){
+        const totalEnergy = computeTotalEnergy(),
+              totalMomentum = computeTotalMomentum(),
+              kinetic = computeKineticEnergy(),
+              potential = computePotentialEnergy(),
+              angularMomentum = computeTotalAngularMomentum(),
+              com = computeCenterOfMass();
+        DOM.totalEnergy.textContent = `Energy: ${totalEnergy.toFixed(2)}`;
+        DOM.totalMomentum.textContent = `Momentum: ${totalMomentum.toFixed(2)}`;
+        DOM.kineticEnergy.textContent = `Kinetic Energy: ${kinetic.toFixed(2)}`;
+        DOM.potentialEnergy.textContent = `Potential Energy: ${potential.toFixed(2)}`;
+        DOM.angularMomentumValue.textContent = `Angular Momentum: ${angularMomentum.toFixed(2)}`;
+        DOM.centerOfMass.textContent = `Center of Mass: (${com.x.toFixed(2)}, ${com.z.toFixed(2)})`;
+
+        timeData.push(simTime.toFixed(2));
+        energyData.push(totalEnergy);
+        momentumData.push(totalMomentum);
+        kineticData.push(kinetic);
+        potentialData.push(potential);
+        angularMomentumData.push(angularMomentum);
+        if (timeData.length > 50) {
+          timeData.shift(); energyData.shift(); momentumData.shift();
+          kineticData.shift(); potentialData.shift(); angularMomentumData.shift();
+        }
+        if (simTime - lastChartUpdateTime >= CHART_UPDATE_INTERVAL) {
+          [energyChart, momentumChart, kineticChart, potentialChart, angularMomentumChart].forEach((chart, i) => {
+            if (chart) {
+              chart.data.labels = timeData;
+              const dataSets = [energyData, momentumData, kineticData, potentialData, angularMomentumData];
+              chart.data.datasets[0].data = dataSets[i];
+              chart.update();
             }
-          },
-          plugins: {
-            legend: { labels: { color: '#FF8C00' } }
+          });
+          if (comChart) {
+            comChart.data.datasets[0].data = [{ x: com.x, y: com.z }];
+            comChart.update();
           }
-        }
-      });
-    }
-
-    /***** 13. INTERACTIVE CONTROLS & RAYCASTING *****/
-    document.getElementById("speedUp").addEventListener("click", () => {
-      timeScale *= 1.2;
-      console.log("Speed up clicked. New time scale:", timeScale);
-    });
-    document.getElementById("slowDown").addEventListener("click", () => {
-      timeScale /= 1.2;
-      console.log("Slow down clicked. New time scale:", timeScale);
-    });
-    document.getElementById("resetSim").addEventListener("click", () => {
-      objects.forEach(body => {
-        scene.remove(body.mesh);
-        scene.remove(body.pathLine);
-      });
-      objects.length = 0;
-      simTime = 0;
-      // Reset chart data arrays
-      timeData.length = 0;
-      energyData.length = 0;
-      momentumData.length = 0;
-      createCelestialBodies();
-      console.log("Simulation reset.");
-    });
-    document.getElementById("toggleDataHud").addEventListener("click", () => {
-      dataHudVisible = !dataHudVisible;
-      document.getElementById("dataHud").style.display = dataHudVisible ? "block" : "none";
-    });
-    document.getElementById("toggleIntegrator").addEventListener("click", () => {
-      integrationMethod = (integrationMethod === "RK4") ? "Leapfrog" : "RK4";
-      console.log("Integrator toggled. New integrator:", integrationMethod);
-    });
-    document.getElementById("addBody").addEventListener("click", () => {
-      const name = document.getElementById("bodyName").value || "Custom Body";
-      const mass = parseFloat(document.getElementById("bodyMass").value);
-      const x = parseFloat(document.getElementById("bodyX").value);
-      const y = parseFloat(document.getElementById("bodyY").value);
-      const z = parseFloat(document.getElementById("bodyZ").value);
-      const vx = parseFloat(document.getElementById("bodyVx").value);
-      const vy = parseFloat(document.getElementById("bodyVy").value);
-      const vz = parseFloat(document.getElementById("bodyVz").value);
-
-      if (isNaN(mass) || isNaN(x) || isNaN(y) || isNaN(z) || isNaN(vx) || isNaN(vy) || isNaN(vz)) {
-        alert("Please enter valid numbers for all fields.");
-        return;
-      }
-
-      const position = new THREE.Vector3(x, y, z);
-      const velocity = new THREE.Vector3(vx, vy, vz);
-      const color = 0xFF8C00;
-      const radius = 0.01; // Default radius for custom bodies
-
-      const body = new Body(name, mass, position, velocity, radius, color);
-      objects.push(body);
-      console.log("Added body:", name);
-    });
-    document.getElementById("exportData").addEventListener("click", () => {
-      let csvContent = "Name,Mass (M_sun),X (AU),Y (AU),Z (AU),Vx (AU/year),Vy (AU/year),Vz (AU/year)\n";
-      objects.forEach(body => {
-        const pos = body.position.clone().divideScalar(distanceScale);
-        const vel = body.velocity.clone().divideScalar(distanceScale);
-        csvContent += `${body.name},${body.mass},${pos.x},${pos.y},${pos.z},${vel.x},${vel.y},${vel.z}\n`;
-      });
-
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'simulation_data.csv';
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    window.addEventListener("click", (event) => {
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(scene.children);
-      if (intersects.length > 0) {
-        const selectedBody = intersects[0].object.userData.body;
-        if (selectedBody) {
-          controls.target.copy(selectedBody.mesh.position);
-          updateExtraInfo(selectedBody);
-          console.log("Selected:", selectedBody.name);
+          lastChartUpdateTime = simTime;
         }
       }
-    });
-    window.addEventListener("resize", () => {
-      camera.aspect = window.innerWidth/window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
 
-    /***** 14. INITIALIZE & START SIMULATION *****/
-    console.log("Page loaded. Starting simulation.");
-    initScene();
-    createCelestialBodies();
-    initCharts();
-    animate();
+      function updatePathLines(){
+        objects.forEach(body => {
+          body.pathPoints.push(body.position.clone());
+          if (body.pathPoints.length > MAX_PATH_POINTS) body.pathPoints.shift();
+          body.pathGeometry.setFromPoints(body.pathPoints);
+          body.pathGeometry.attributes.position.needsUpdate = true;
+        });
+      }
+
+      /* Charts Initialization */
+      function initCharts(){
+        const chartConfig = (id, label, type = 'line') => {
+          const isScatter = type === 'scatter',
+                scales = {
+                  x: {
+                    type: isScatter ? 'linear' : 'category',
+                    title: { display: true, text: isScatter ? 'X (units)' : 'Time (yr)', color: '#FF8C00' },
+                    ticks: { color: '#FF8C00', ...(isScatter && { callback: val => Number(val).toFixed(2) }) }
+                  },
+                  y: {
+                    type: 'linear',
+                    title: { display: true, text: isScatter ? 'Z (units)' : label, color: '#FF8C00' },
+                    ticks: { callback: val => Number(val).toFixed(2), color: '#FF8C00' }
+                  }
+                };
+          return {
+            type,
+            data: {
+              labels: isScatter ? [] : timeData,
+              datasets: [{
+                label,
+                data: isScatter ? [{ x: 0, y: 0 }] : [],
+                borderColor: 'rgba(255,140,0,1)',
+                backgroundColor: isScatter ? 'rgba(255,140,0,1)' : 'rgba(255,140,0,0.2)',
+                fill: !isScatter,
+                tension: 0.3,
+                pointRadius: isScatter ? 5 : 0
+              }]
+            },
+            options: {
+              animation: false,
+              responsive: false,
+              scales,
+              plugins: { legend: { labels: { color: '#FF8C00' } } }
+            }
+          };
+        };
+        energyChart = new Chart(document.getElementById('energyChart').getContext('2d'), chartConfig('energyChart', 'Total Energy'));
+        momentumChart = new Chart(document.getElementById('momentumChart').getContext('2d'), chartConfig('momentumChart', 'Momentum'));
+        kineticChart = new Chart(document.getElementById('kineticChart').getContext('2d'), chartConfig('kineticChart', 'Kinetic Energy'));
+        potentialChart = new Chart(document.getElementById('potentialChart').getContext('2d'), chartConfig('potentialChart', 'Potential Energy'));
+        angularMomentumChart = new Chart(document.getElementById('angularMomentumChart').getContext('2d'), chartConfig('angularMomentumChart', 'Angular Momentum'));
+        comChart = new Chart(document.getElementById('comChart').getContext('2d'), chartConfig('comChart', 'Center of Mass', 'scatter'));
+      }
+
+      /* Event Listeners */
+      function setupEventListeners(){
+        document.getElementById("speedUp").addEventListener("click", () => timeScale *= 1.2);
+        document.getElementById("slowDown").addEventListener("click", () => timeScale /= 1.2);
+        document.getElementById("resetSim").addEventListener("click", () => {
+          objects.forEach(b => {
+            scene.remove(b.mesh);
+            scene.remove(b.pathLine);
+          });
+          objects.length = 0;
+          simTime = 0;
+          [timeData, energyData, momentumData, kineticData, potentialData, angularMomentumData].forEach(arr => arr.length = 0);
+          if (previewOrbitLine) { scene.remove(previewOrbitLine); previewOrbitLine = null; }
+          if (previewBody) { scene.remove(previewBody); previewBody = null; }
+          createCelestialBodies();
+          updateOrbitPreview();
+        });
+        document.getElementById("toggleDataHud").addEventListener("click", () => {
+          dataHudVisible = !dataHudVisible;
+          DOM.dataHud.style.display = dataHudVisible ? "block" : "none";
+        });
+        document.getElementById("toggleIntegrator").addEventListener("click", () => {
+          integrationMethod = integrationMethod === "RK4" ? "Leapfrog" : "RK4";
+        });
+        document.getElementById("exportData").addEventListener("click", () => {
+          let csv = "Name,Mass (M_sun),X (AU),Y (AU),Z (AU),Vx (AU/year),Vy (AU/year),Vz (AU/year)\n";
+          objects.forEach(b => {
+            const pos = b.position.clone().divideScalar(DISTANCE_SCALE),
+                  vel = b.velocity.clone().divideScalar(DISTANCE_SCALE);
+            csv += `${b.name},${b.mass},${pos.x},${pos.y},${pos.z},${vel.x},${vel.y},${vel.z}\n`;
+          });
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'simulation_data.csv';
+          a.click();
+          URL.revokeObjectURL(url);
+        });
+        window.addEventListener("click", e => {
+          mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+          mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+          const intersects = raycaster.intersectObjects(scene.children);
+          if (intersects.length && intersects[0].object.userData.body) {
+            const body = intersects[0].object.userData.body;
+            controls.target.copy(body.mesh.position);
+            DOM.selectedInfo.textContent = `Selected: ${body.name}`;
+          }
+        });
+        window.addEventListener("resize", () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        ["massSlider", "aSlider", "eSlider", "iSlider", "wSlider", "OmegaSlider", "vSlider"].forEach(id =>
+          document.getElementById(id).addEventListener("input", updateOrbitPreview)
+        );
+        document.getElementById("addOrbitButton").addEventListener("click", addCustomOrbit);
+      }
+
+      /* Custom Orbit Functions */
+      function computeOrbitState(a, e, i_deg, w_deg, Omega_deg, f_deg){
+        const i = deg2rad(i_deg),
+              w = deg2rad(w_deg),
+              Omega = deg2rad(Omega_deg),
+              f = deg2rad(f_deg);
+        const r = a * (1 - e * e) / (1 + e * Math.cos(f));
+        const mu = 4 * Math.PI * Math.PI;
+        const posPeri = new THREE.Vector3(r * Math.cos(f), r * Math.sin(f), 0);
+        const velPeri = new THREE.Vector3(-Math.sqrt(mu / (a * (1 - e * e))) * Math.sin(f),
+                                          Math.sqrt(mu / (a * (1 - e * e))) * (e + Math.cos(f)),
+                                          0);
+        const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(i, Omega, w, 'ZXY'));
+        return { pos: posPeri.applyQuaternion(q).multiplyScalar(DISTANCE_SCALE), vel: velPeri.applyQuaternion(q).multiplyScalar(DISTANCE_SCALE) };
+      }
+
+      function computeOrbitEllipsePoints(a, e, i_deg, w_deg, Omega_deg, numPoints = 100){
+        return Array.from({ length: numPoints + 1 }, (_, j) =>
+          computeOrbitState(a, e, i_deg, w_deg, Omega_deg, j * 360 / numPoints).pos
+        );
+      }
+
+      function updateOrbitPreview(){
+        const params = {
+          mass: parseFloat(document.getElementById("massSlider").value),
+          a: parseFloat(document.getElementById("aSlider").value),
+          e: parseFloat(document.getElementById("eSlider").value),
+          i: parseFloat(document.getElementById("iSlider").value),
+          w: parseFloat(document.getElementById("wSlider").value),
+          Omega: parseFloat(document.getElementById("OmegaSlider").value),
+          f: parseFloat(document.getElementById("vSlider").value)
+        };
+        ["mass", "a", "e", "i", "w", "Omega", "v"].forEach(k =>
+          document.getElementById(`${k}Value`).textContent = params[k]
+        );
+        const points = computeOrbitEllipsePoints(params.a, params.e, params.i, params.w, params.Omega);
+        if (!previewOrbitLine) {
+          previewOrbitLine = new THREE.LineLoop(
+            new THREE.BufferGeometry().setFromPoints(points),
+            new THREE.LineBasicMaterial({ color: HOLO_COLOR, transparent: true, opacity: 0.6 })
+          );
+          scene.add(previewOrbitLine);
+        } else {
+          previewOrbitLine.geometry.setFromPoints(points);
+          previewOrbitLine.geometry.attributes.position.needsUpdate = true;
+        }
+        const state = computeOrbitState(params.a, params.e, params.i, params.w, params.Omega, params.f);
+        const radius = Math.max(Math.cbrt(params.mass), 0.005);
+        if (!previewBody) {
+          previewBody = new THREE.Mesh(
+            new THREE.SphereGeometry(radius * DISTANCE_SCALE, 16, 16),
+            new THREE.MeshPhongMaterial({ color: HOLO_COLOR, emissive: HOLO_COLOR, emissiveIntensity: 0.5, transparent: true, opacity: 0.8 })
+          );
+          scene.add(previewBody);
+        } else if (previewBody.geometry.parameters.radius !== radius * DISTANCE_SCALE) {
+          previewBody.geometry.dispose();
+          previewBody.geometry = new THREE.SphereGeometry(radius * DISTANCE_SCALE, 16, 16);
+        }
+        previewBody.position.copy(state.pos);
+      }
+
+      function addCustomOrbit(){
+        const params = {
+          mass: parseFloat(document.getElementById("massSlider").value),
+          a: parseFloat(document.getElementById("aSlider").value),
+          e: parseFloat(document.getElementById("eSlider").value),
+          i: parseFloat(document.getElementById("iSlider").value),
+          w: parseFloat(document.getElementById("wSlider").value),
+          Omega: parseFloat(document.getElementById("OmegaSlider").value),
+          f: parseFloat(document.getElementById("vSlider").value)
+        };
+        const state = computeOrbitState(params.a, params.e, params.i, params.w, params.Omega, params.f);
+        const radius = Math.max(Math.cbrt(params.mass), 0.005);
+        objects.push(new Body("Custom Orbit", params.mass, state.pos, state.vel, radius, HOLO_COLOR));
+        scene.remove(previewBody);
+        scene.remove(previewOrbitLine);
+        previewBody = null;
+        previewOrbitLine = null;
+        updateOrbitPreview();
+      }
+
+      /* Animation Loop */
+      function animate(){
+        requestAnimationFrame(animate);
+        const totalDt = BASE_DT * timeScale;
+        (integrationMethod === "RK4" ? rk4Step : leapfrogStep)(totalDt);
+        updatePathLines();
+        updateHUD();
+        if (dataHudVisible) updateDataHUD();
+        controls.update();
+        renderer.render(scene, camera);
+        simTime += totalDt;
+      }
+
+      /* Initialization */
+      function init(){
+        initScene();
+        createCelestialBodies();
+        initCharts();
+        updateOrbitPreview();
+        setupEventListeners();
+        animate();
+      }
+      document.addEventListener("DOMContentLoaded", init);
+    })();
   </script>
 </body>
 </html>
