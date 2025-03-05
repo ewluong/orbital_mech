@@ -1,6 +1,6 @@
 # Orbital Mechanics Holographic Simulator
 
-Welcome to the **Orbital Mechanics Simulator**! This project is a cool experiment in visualizing our solar system in 3D using modern web technologies.
+Welcome to the **Orbital Mechanics Simulator**!
 
 ## Overview
 
