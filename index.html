@@ -195,7 +195,6 @@
     let simTime = 0;
     let timeScale = 1;
     const maxPathPoints = 300;
-    // Start with data HUD visible
     let dataHudVisible = true;
     const baseDt = 0.016;  // Base timestep in years (approx 60 FPS)
     const maxDt = 0.001;   // Maximum dt per substep for stability
@@ -208,6 +207,14 @@
 
     // Chart instances
     let energyChart, momentumChart;
+
+    // Cache DOM elements for HUD updates
+    const simTimeEl = document.getElementById("simTime"),
+          timeScaleEl = document.getElementById("timeScale"),
+          integratorEl = document.getElementById("integrator"),
+          selectedInfoEl = document.getElementById("selectedInfo"),
+          totalEnergyEl = document.getElementById("totalEnergy"),
+          totalMomentumEl = document.getElementById("totalMomentum");
 
     /***** 1. INITIALIZE THE SCENE *****/
     function initScene() {
@@ -273,15 +280,22 @@
     /***** 3. PHYSICS: RK4 INTEGRATION WITH SUBSTEPPING *****/
     function computeDerivatives(states) {
       const derivatives = [];
+      const tempDiff = new THREE.Vector3();
       for(let i = 0; i < states.length; i++){
         const dr = states[i].v.clone();
         const dv = new THREE.Vector3();
         for(let j = 0; j < states.length; j++){
           if(i === j) continue;
-          const diff = states[j].r.clone().sub(states[i].r);
-          const distanceSq = diff.lengthSq() + softening*softening;
-          const forceMag = (G_sim * states[j].mass) / distanceSq;
-          dv.add(diff.normalize().multiplyScalar(forceMag));
+          tempDiff.subVectors(states[j].r, states[i].r);
+          const rawLengthSq = tempDiff.lengthSq();
+          const distanceSq = rawLengthSq + softening * softening;
+          const rawLength = Math.sqrt(rawLengthSq);
+          if(rawLength > 0){
+            const factor = (G_sim * states[j].mass) / (distanceSq * rawLength);
+            dv.x += tempDiff.x * factor;
+            dv.y += tempDiff.y * factor;
+            dv.z += tempDiff.z * factor;
+          }
         }
         derivatives.push({ dr: dr, dv: dv });
       }
@@ -302,8 +316,8 @@
         const state2 = [];
         for(let i = 0; i < n; i++){
           state2.push({
-            r: state0[i].r.clone().add(k1[i].dr.clone().multiplyScalar(dt/2)),
-            v: state0[i].v.clone().add(k1[i].dv.clone().multiplyScalar(dt/2)),
+            r: state0[i].r.clone().addScaledVector(k1[i].dr, dt/2),
+            v: state0[i].v.clone().addScaledVector(k1[i].dv, dt/2),
             mass: state0[i].mass
           });
         }
@@ -311,8 +325,8 @@
         const state3 = [];
         for(let i = 0; i < n; i++){
           state3.push({
-            r: state0[i].r.clone().add(k2[i].dr.clone().multiplyScalar(dt/2)),
-            v: state0[i].v.clone().add(k2[i].dv.clone().multiplyScalar(dt/2)),
+            r: state0[i].r.clone().addScaledVector(k2[i].dr, dt/2),
+            v: state0[i].v.clone().addScaledVector(k2[i].dv, dt/2),
             mass: state0[i].mass
           });
         }
@@ -320,22 +334,22 @@
         const state4 = [];
         for(let i = 0; i < n; i++){
           state4.push({
-            r: state0[i].r.clone().add(k3[i].dr.clone().multiplyScalar(dt)),
-            v: state0[i].v.clone().add(k3[i].dv.clone().multiplyScalar(dt)),
+            r: state0[i].r.clone().addScaledVector(k3[i].dr, dt),
+            v: state0[i].v.clone().addScaledVector(k3[i].dv, dt),
             mass: state0[i].mass
           });
         }
         const k4 = computeDerivatives(state4);
         for(let i = 0; i < n; i++){
           const dr = k1[i].dr.clone()
-                      .add(k2[i].dr.clone().multiplyScalar(2))
-                      .add(k3[i].dr.clone().multiplyScalar(2))
-                      .add(k4[i].dr.clone())
+                      .addScaledVector(k2[i].dr, 2)
+                      .addScaledVector(k3[i].dr, 2)
+                      .add(k4[i].dr)
                       .multiplyScalar(dt/6);
           const dv = k1[i].dv.clone()
-                      .add(k2[i].dv.clone().multiplyScalar(2))
-                      .add(k3[i].dv.clone().multiplyScalar(2))
-                      .add(k4[i].dv.clone())
+                      .addScaledVector(k2[i].dv, 2)
+                      .addScaledVector(k3[i].dv, 2)
+                      .add(k4[i].dv)
                       .multiplyScalar(dt/6);
           objects[i].position.add(dr);
           objects[i].velocity.add(dv);
@@ -348,12 +362,19 @@
     /***** 4. PHYSICS: LEAPFROG INTEGRATION *****/
     function computeAcceleration(body) {
       const acc = new THREE.Vector3();
+      const tempDiff = new THREE.Vector3();
       objects.forEach(other => {
         if (other === body) return;
-        const diff = other.position.clone().sub(body.position);
-        const distanceSq = diff.lengthSq() + softening * softening;
-        const forceMag = (G_sim * other.mass) / distanceSq;
-        acc.add(diff.normalize().multiplyScalar(forceMag));
+        tempDiff.subVectors(other.position, body.position);
+        const rawLengthSq = tempDiff.lengthSq();
+        const distanceSq = rawLengthSq + softening * softening;
+        const rawLength = Math.sqrt(rawLengthSq);
+        if(rawLength > 0){
+          const factor = (G_sim * other.mass) / (distanceSq * rawLength);
+          acc.x += tempDiff.x * factor;
+          acc.y += tempDiff.y * factor;
+          acc.z += tempDiff.z * factor;
+        }
       });
       return acc;
     }
@@ -364,15 +385,15 @@
       for(let s = 0; s < steps; s++){
         objects.forEach(body => {
           const acc = computeAcceleration(body);
-          body.velocity.add(acc.multiplyScalar(dt/2));
+          body.velocity.addScaledVector(acc, dt/2);
         });
         objects.forEach(body => {
-          body.position.add(body.velocity.clone().multiplyScalar(dt));
+          body.position.addScaledVector(body.velocity, dt);
           body.mesh.position.copy(body.position);
         });
         objects.forEach(body => {
           const acc = computeAcceleration(body);
-          body.velocity.add(acc.multiplyScalar(dt/2));
+          body.velocity.addScaledVector(acc, dt/2);
         });
         handleCollisions();
       }
@@ -474,30 +495,29 @@
 
     /***** 7. COLLISION DETECTION & MERGING *****/
     function handleCollisions() {
+      const tempDiff = new THREE.Vector3();
       for (let i = objects.length - 1; i >= 0; i--) {
         for (let j = i - 1; j >= 0; j--) {
-          const bodyA = objects[i];
-          const bodyB = objects[j];
-          const diff = bodyA.position.clone().sub(bodyB.position);
-          const dist = diff.length();
-          if (dist < (bodyA.radius + bodyB.radius) * distanceScale * 0.9) {
-            const newMass = bodyA.mass + bodyB.mass;
-            const newPosition = bodyA.position.clone().multiplyScalar(bodyA.mass)
-                                  .add(bodyB.position.clone().multiplyScalar(bodyB.mass))
+          tempDiff.subVectors(objects[i].position, objects[j].position);
+          const dist = tempDiff.length();
+          if (dist < (objects[i].radius + objects[j].radius) * distanceScale * 0.9) {
+            const newMass = objects[i].mass + objects[j].mass;
+            const newPosition = objects[i].position.clone().multiplyScalar(objects[i].mass)
+                                  .add(objects[j].position.clone().multiplyScalar(objects[j].mass))
                                   .divideScalar(newMass);
-            const newVelocity = bodyA.velocity.clone().multiplyScalar(bodyA.mass)
-                                  .add(bodyB.velocity.clone().multiplyScalar(bodyB.mass))
+            const newVelocity = objects[i].velocity.clone().multiplyScalar(objects[i].mass)
+                                  .add(objects[j].velocity.clone().multiplyScalar(objects[j].mass))
                                   .divideScalar(newMass);
-            const newRadius = Math.cbrt(Math.pow(bodyA.radius,3) + Math.pow(bodyB.radius,3));
-            const mergedBody = new Body(bodyA.name + "+" + bodyB.name, newMass, newPosition, newVelocity, newRadius, bodyA.color);
-            scene.remove(bodyA.mesh);
-            scene.remove(bodyA.pathLine);
-            scene.remove(bodyB.mesh);
-            scene.remove(bodyB.pathLine);
+            const newRadius = Math.cbrt(Math.pow(objects[i].radius,3) + Math.pow(objects[j].radius,3));
+            const mergedBody = new Body(objects[i].name + "+" + objects[j].name, newMass, newPosition, newVelocity, newRadius, objects[i].color);
+            scene.remove(objects[i].mesh);
+            scene.remove(objects[i].pathLine);
+            scene.remove(objects[j].mesh);
+            scene.remove(objects[j].pathLine);
             objects.splice(i, 1);
             objects.splice(j, 1);
             objects.push(mergedBody);
-            console.log("Merged " + bodyA.name + " and " + bodyB.name);
+            console.log("Merged " + objects[i]?.name + " and " + objects[j]?.name);
             return;
           }
         }
@@ -506,15 +526,15 @@
 
     /***** 8. HUD & DATA HUD UPDATE FUNCTIONS *****/
     function updateHUD() {
-      document.getElementById("simTime").textContent = "Time: " + simTime.toFixed(2) + " yr";
-      document.getElementById("timeScale").textContent = "Time Scale: " + timeScale.toFixed(1) + "x";
-      document.getElementById("integrator").textContent = "Integrator: " + integrationMethod;
+      simTimeEl.textContent = "Time: " + simTime.toFixed(2) + " yr";
+      timeScaleEl.textContent = "Time Scale: " + timeScale.toFixed(1) + "x";
+      integratorEl.textContent = "Integrator: " + integrationMethod;
     }
     function updateDataHUD() {
       const totalEnergy = computeTotalEnergy();
       const totalMomentum = computeTotalMomentum();
-      document.getElementById("totalEnergy").textContent = "Energy: " + totalEnergy.toFixed(2);
-      document.getElementById("totalMomentum").textContent = "Momentum: " + totalMomentum.toFixed(2);
+      totalEnergyEl.textContent = "Energy: " + totalEnergy.toFixed(2);
+      totalMomentumEl.textContent = "Momentum: " + totalMomentum.toFixed(2);
       
       // Update chart data arrays
       timeData.push(simTime.toFixed(2));
@@ -540,7 +560,7 @@
       }
     }
     function updateExtraInfo(body) {
-      document.getElementById("selectedInfo").textContent = "Selected: " + body.name;
+      selectedInfoEl.textContent = "Selected: " + body.name;
     }
 
     /***** 9. DIAGNOSTICS: ENERGY & MOMENTUM *****/
@@ -558,7 +578,7 @@
     function computeTotalMomentum() {
       const total = new THREE.Vector3();
       objects.forEach(body => {
-        total.add(body.velocity.clone().multiplyScalar(body.mass));
+        total.addScaledVector(body.velocity, body.mass);
       });
       return total.length();
     }
